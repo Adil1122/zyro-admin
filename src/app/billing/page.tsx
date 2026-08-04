@@ -1,81 +1,53 @@
 'use client';
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { TENANTS } from '@/lib/data';
 
-const dunning = TENANTS
-  .filter(t => t.status === 'past_due')
-  .map(t => ({ ...t, daysLeft: t.deepDive.dunningDays }))
-  .sort((a, b) => a.daysLeft - b.daysLeft);
-
-const totalMrr = TENANTS.reduce((s, t) => s + t.mrr, 0);
-const dunningMrr = dunning.reduce((s, t) => s + t.mrr, 0);
-
 export default function BillingPage() {
-  const router = useRouter();
+  const dunning = TENANTS.filter(t => t.status === 'past_due');
 
   return (
-    <div>
-      <div className="v6-page-head">
+    <div className="page-anim">
+      <div className="page-head">
         <h1>Billing</h1>
-        <div className="v6-page-sub">MRR trends, churn, and dunning queue</div>
+        <div className="page-sub">Revenue health, dunning management, and subscription status</div>
       </div>
 
-      <div className="v6-metric-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 24 }}>
-        <div className="v6-metric">
-          <label>MRR</label>
-          <b className="num">Rs {(totalMrr / 1000000).toFixed(2)}M</b>
-          <div className="v6-trend up">↑ 3.2% vs last month</div>
-        </div>
-        <div className="v6-metric">
-          <label>Churn (30d)</label>
-          <b className="num" style={{ color: 'var(--v6-warning)' }}>2.1%</b>
-          <div className="v6-trend" style={{ color: 'var(--v6-text-3)' }}>Industry avg 3.4%</div>
-        </div>
-        <div className="v6-metric">
-          <label>In dunning</label>
-          <b className="num" style={{ color: dunning.length > 0 ? 'var(--v6-warning)' : 'var(--v6-accent-light)' }}>{dunning.length} tenants</b>
-          <div className="v6-trend" style={{ color: 'var(--v6-text-3)' }}>Past due accounts</div>
-        </div>
-        <div className="v6-metric">
-          <label>Past-due MRR</label>
-          <b className="num" style={{ color: 'var(--v6-destructive)' }}>Rs {dunningMrr.toLocaleString('en-US')}</b>
-          <div className="v6-trend" style={{ color: 'var(--v6-text-3)' }}>At risk of churning</div>
+      <div className="zone">
+        <div className="metric-grid">
+          <div className="metric"><label>MRR</label><b className="num">Rs 5.81M</b><div className="trend up">↑ 6.8% this month</div></div>
+          <div className="metric"><label>ARR</label><b className="num">Rs 69.7M</b><div className="trend up">↑ 6.8% this month</div></div>
+          <div className="metric"><label>Churn rate</label><b className="num">2.1%</b><div className="trend down">↑ 0.3pt this month</div></div>
+          <div className="metric"><label>Trial → paid</label><b className="num">31%</b><div className="trend down">↓ 2pt this month</div></div>
+          <div className="metric"><label>Past due</label><b className="num" style={{ color: 'var(--warning)' }}>{dunning.length}</b><div className="trend down">accounts at risk</div></div>
         </div>
       </div>
 
-      <div className="v6-zone">
-        <div className="v6-zone-head">
-          <span className="v6-zone-title">Dunning queue</span>
-          <span className="v6-zone-sub">{dunning.length} past-due accounts — sorted by days remaining</span>
+      <div className="zone">
+        <div className="zone-head">
+          <span className="zone-title">Dunning queue</span>
+          <span className="zone-sub">Accounts with failed payments — automated retry in progress</span>
         </div>
         {dunning.length === 0 ? (
-          <div className="v6-card" style={{ padding: 32, textAlign: 'center', color: 'var(--v6-text-3)' }}>
-            No past-due accounts
+          <div className="card" style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>
+            No accounts currently in dunning.
           </div>
         ) : (
-          <div className="v6-risk-list" id="dunningList">
+          <div className="risk-list">
             {dunning.map(t => (
-              <div
-                key={t.id}
-                className="v6-risk-row"
-                style={{ cursor: 'pointer' }}
-                onClick={() => router.push(`/tenants/${t.id}`)}
-              >
-                <div className="v6-risk-score-badge atrisk" style={{ fontSize: 11 }}>
-                  Rs<br />{(t.mrr / 1000).toFixed(0)}k
+              <Link key={t.id} href={`/tenants/${t.id}`} className="risk-row">
+                <div className="risk-score-badge atrisk" style={{ fontSize: 11 }}>
+                  Rs<br />{Math.round(t.mrr / 1000)}k
                 </div>
-                <div className="v6-risk-row-info">
-                  <div className="v6-rn-name">{t.name}</div>
-                  <div className="v6-rn-sub">{t.plan} · Rs {t.mrr.toLocaleString('en-US')} overdue</div>
+                <div className="risk-row-info">
+                  <div className="rn-name">{t.name}</div>
+                  <div className="rn-sub">{t.plan} · Rs {t.mrr.toLocaleString('en-US')} overdue</div>
                 </div>
-                <span className={`v6-risk-tag atrisk`}>
-                  {t.daysLeft} day{t.daysLeft !== 1 ? 's' : ''} left
-                </span>
-                <svg className="v6-risk-chev" width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <span className="risk-tag atrisk">{t.dunningDays} day{t.dunningDays === 1 ? '' : 's'} left</span>
+                <svg className="risk-chev" width="14" height="14" viewBox="0 0 16 16" fill="none">
                   <path d="M6 3.5L11 8l-5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-              </div>
+              </Link>
             ))}
           </div>
         )}

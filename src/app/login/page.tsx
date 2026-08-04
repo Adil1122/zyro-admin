@@ -12,13 +12,11 @@ function maskEmail(email: string): string {
 export default function LoginPage() {
   const router = useRouter();
 
-  // Step 1: credentials
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [step1Err, setStep1Err] = useState('');
   const [step1Loading, setStep1Loading] = useState(false);
 
-  // Step 2: OTP
   const [step, setStep]         = useState<1 | 2>(1);
   const [sentTo, setSentTo]     = useState('');
   const [digits, setDigits]     = useState(['', '', '', '', '', '']);
@@ -32,7 +30,7 @@ export default function LoginPage() {
 
   async function handleStep1(e?: React.FormEvent) {
     e?.preventDefault();
-    if (!email.trim() || !password) { setStep1Err('Enter your email and password.'); return; }
+    if (!email.trim() || !password) { setStep1Err('Enter your email and password to continue.'); return; }
     setStep1Loading(true);
     setStep1Err('');
     try {
@@ -42,10 +40,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email: email.trim(), password }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setStep1Err(data.error ?? 'Something went wrong. Try again.');
-        return;
-      }
+      if (!res.ok) { setStep1Err(data.error ?? 'Something went wrong. Try again.'); return; }
       setSentTo(email.trim());
       setStep(2);
     } catch {
@@ -70,14 +65,11 @@ export default function LoginPage() {
     const next = ['', '', '', '', '', ''];
     text.split('').forEach((c, i) => { next[i] = c; });
     setDigits(next);
-    const lastFilled = Math.min(text.length, 5);
-    digitRefs.current[lastFilled]?.focus();
+    digitRefs.current[Math.min(text.length, 5)]?.focus();
   }
 
   function handleDigitKey(i: number, e: React.KeyboardEvent) {
-    if (e.key === 'Backspace' && !digits[i] && i > 0) {
-      digitRefs.current[i - 1]?.focus();
-    }
+    if (e.key === 'Backspace' && !digits[i] && i > 0) digitRefs.current[i - 1]?.focus();
   }
 
   async function handleStep2(e?: React.FormEvent) {
@@ -107,34 +99,28 @@ export default function LoginPage() {
     }
   }
 
-  function handleBack() {
-    setStep(1);
-    setDigits(['', '', '', '', '', '']);
-    setStep2Err('');
-  }
-
   return (
-    <div className="v6-login-root">
-      <div className="v6-login-card">
+    <div className="login-root">
+      <div className="login-card">
 
         {step === 1 && (
           <form onSubmit={handleStep1} noValidate>
-            <div className="v6-login-logo">
-              <span className="v6-logo-mark">Z</span>
-              <span className="v6-logo-text">Zyro</span>
-              <span className="v6-ops-badge">OPS</span>
+            <div className="login-logo">
+              <span className="login-logo-mark">Z</span>
+              <span className="login-logo-text">Zyro</span>
+              <span className="ops-badge">OPS</span>
             </div>
-            <p className="v6-login-sub">Internal platform administration — not the merchant product</p>
+            <div className="login-sub">Internal platform administration — not the merchant product</div>
 
-            <div className="v6-login-notice">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ color: 'var(--v6-meta-blue)', flexShrink: 0, marginTop: 1 }}>
-                <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M8 5v3.5M8 11v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <div className="login-notice">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.6"/>
+                <path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.6"/>
               </svg>
-              <span>A 6-digit verification code will be emailed to the registered admin address. Codes expire in 5 minutes.</span>
+              <span>This panel requires MFA on every sign-in — no exceptions, including founder accounts. A 6-digit code will be emailed to the registered admin address.</span>
             </div>
 
-            <div className="v6-login-field">
+            <div className="login-field">
               <label>Work email</label>
               <input
                 type="email"
@@ -145,7 +131,7 @@ export default function LoginPage() {
                 disabled={step1Loading}
               />
             </div>
-            <div className="v6-login-field">
+            <div className="login-field">
               <label>Password</label>
               <input
                 type="password"
@@ -157,9 +143,9 @@ export default function LoginPage() {
               />
             </div>
 
-            {step1Err && <p className="v6-login-err show">{step1Err}</p>}
+            {step1Err && <div className="login-err show">{step1Err}</div>}
 
-            <button type="submit" className="v6-login-btn" disabled={step1Loading}>
+            <button type="submit" className="btn btn-primary" disabled={step1Loading}>
               {step1Loading ? 'Sending code…' : 'Continue'}
             </button>
           </form>
@@ -167,23 +153,21 @@ export default function LoginPage() {
 
         {step === 2 && (
           <form onSubmit={handleStep2} noValidate>
-            <div className="v6-login-logo">
-              <span className="v6-logo-mark">Z</span>
-              <span className="v6-logo-text">Zyro</span>
-              <span className="v6-ops-badge">OPS</span>
+            <div className="login-logo">
+              <span className="login-logo-mark">Z</span>
+              <span className="login-logo-text">Zyro</span>
+              <span className="ops-badge">OPS</span>
+            </div>
+            <div className="login-sub">
+              Enter the 6-digit code emailed to <strong style={{ color: 'var(--text)' }}>{maskEmail(sentTo)}</strong>. It expires in 5 minutes.
             </div>
 
-            <p className="v6-login-sub">
-              We emailed a 6-digit code to <strong style={{ color: 'var(--v6-text-1)' }}>{maskEmail(sentTo)}</strong>.
-              It expires in 5 minutes.
-            </p>
-
-            <div className="v6-mfa-row" onPaste={handleDigitPaste}>
+            <div className="mfa-row" onPaste={handleDigitPaste}>
               {digits.map((d, i) => (
                 <input
                   key={i}
                   ref={el => { digitRefs.current[i] = el; }}
-                  className="v6-mfa-digit"
+                  className="mfa-digit"
                   type="text"
                   inputMode="numeric"
                   maxLength={1}
@@ -196,13 +180,17 @@ export default function LoginPage() {
               ))}
             </div>
 
-            {step2Err && <p className="v6-login-err show">{step2Err}</p>}
+            {step2Err && <div className="login-err show">{step2Err}</div>}
 
-            <button type="submit" className="v6-login-btn" disabled={step2Loading || digits.some(d => !d)}>
+            <button type="submit" className="btn btn-primary" disabled={step2Loading || digits.some(d => !d)}>
               {step2Loading ? 'Verifying…' : 'Verify & sign in'}
             </button>
 
-            <button type="button" className="v6-back-btn" style={{ display: 'flex', marginTop: 14 }} onClick={handleBack}>
+            <button
+              type="button"
+              className="back-link-btn"
+              onClick={() => { setStep(1); setDigits(['', '', '', '', '', '']); setStep2Err(''); }}
+            >
               ← Try a different email
             </button>
           </form>

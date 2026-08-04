@@ -23,11 +23,17 @@ export default function ReasonModal() {
   if (!reasonModal.open) return null;
 
   return (
-    <div className="v6-modal-overlay show" onClick={e => e.target === e.currentTarget && closeReasonModal()}>
-      <div className="v6-modal-card">
+    <div className="modal-overlay show" onClick={e => e.target === e.currentTarget && closeReasonModal()}>
+      <div className="modal-card">
+        <div className="modal-icon">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+            <path d="M10 6v5M10 14v.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+            <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.6"/>
+          </svg>
+        </div>
         <h3>{reasonModal.title}</h3>
         <p>{reasonModal.sub}</p>
-        <div className="v6-modal-field">
+        <div className="modal-field">
           <label>Reason (required)</label>
           <textarea
             ref={inputRef}
@@ -37,9 +43,9 @@ export default function ReasonModal() {
             onChange={e => setReason(e.target.value)}
           />
         </div>
-        <div className="v6-modal-actions">
-          <button className="v6-btn-sm" onClick={closeReasonModal}>Cancel</button>
-          <button className="v6-btn-sm v6-btn-impersonate" onClick={() => confirmReasonModal(reason)}>Confirm</button>
+        <div className="modal-actions">
+          <button className="btn-sm" onClick={closeReasonModal}>Cancel</button>
+          <button className="btn-sm btn-impersonate" onClick={() => confirmReasonModal(reason)}>Confirm</button>
         </div>
       </div>
     </div>

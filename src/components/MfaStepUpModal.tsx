@@ -25,9 +25,9 @@ export default function MfaStepUpModal() {
   if (!mfaStepUp.open) return null;
 
   return (
-    <div className="v6-modal-overlay show" onClick={e => e.target === e.currentTarget && closeMfaStepUp()}>
-      <div className="v6-modal-card">
-        <div className="v6-modal-icon">
+    <div className="modal-overlay show" onClick={e => e.target === e.currentTarget && closeMfaStepUp()}>
+      <div className="modal-card">
+        <div className="modal-icon">
           <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
             <rect x="3" y="9" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="1.6"/>
             <path d="M6 9V6a4 4 0 018 0v3" stroke="currentColor" strokeWidth="1.6"/>
@@ -35,7 +35,7 @@ export default function MfaStepUpModal() {
         </div>
         <h3>Re-enter your MFA code</h3>
         <p>{mfaStepUp.reason}</p>
-        <div className="v6-modal-field">
+        <div className="modal-field">
           <label>6-digit code</label>
           <input
             ref={inputRef}
@@ -47,9 +47,9 @@ export default function MfaStepUpModal() {
             onKeyDown={e => e.key === 'Enter' && handleVerify()}
           />
         </div>
-        <div className="v6-modal-actions">
-          <button className="v6-btn-sm" onClick={closeMfaStepUp}>Cancel</button>
-          <button className="v6-btn-sm v6-btn-impersonate" onClick={handleVerify}>Verify</button>
+        <div className="modal-actions">
+          <button className="btn-sm" onClick={closeMfaStepUp}>Cancel</button>
+          <button className="btn-sm btn-impersonate" onClick={handleVerify}>Verify</button>
         </div>
       </div>
     </div>

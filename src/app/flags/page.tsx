@@ -1,88 +1,109 @@
 'use client';
 import React, { useState } from 'react';
-import { KILL_SWITCHES, FEATURE_FLAGS } from '@/lib/data';
 import { useApp } from '@/lib/context';
-import type { KillSwitch, FeatureFlag } from '@/lib/types';
+
+const INITIAL_KILL_SWITCHES = [
+  { name: 'kill-platform-whatsapp-outbound', desc: 'Emergency stop — pauses all outbound WhatsApp sends, every tenant, immediately', owner: 'Anes Khan', on: true },
+  { name: 'kill-platform-courier-autobooking', desc: 'Emergency stop — pauses all automatic courier booking platform-wide', owner: 'Anes Khan', on: true },
+  { name: 'kill-platform-ai-order-from-chat', desc: 'Forces AI order-from-chat into shadow mode for every tenant, no auto-orders placed', owner: 'Anes Khan', on: true },
+];
+
+const FEATURE_FLAGS = [
+  { name: 'release-whatsapp-order-from-chat-v2', desc: 'Improved intent classification for order-from-chat WhatsApp flow', owner: 'Hamza Ops', rollout: 35 },
+  { name: 'release-couriers-scoring-12signal', desc: 'Full 12-signal AI courier scoring (vs. legacy 4-signal)', owner: 'Anes Khan', rollout: 100 },
+  { name: 'release-finance-fbr-autoexport', desc: 'Automatic monthly FBR export for registered tenants', owner: 'Fatima Support Lead', rollout: 80 },
+  { name: 'release-finance-profitcalc-v2', desc: 'Redesigned profit calculator with COD-fee breakdown', owner: 'Hamza Ops', rollout: 15 },
+  { name: 'release-inventory-multiwarehouse-routing', desc: 'Route orders to nearest warehouse automatically', owner: 'Anes Khan', rollout: 60 },
+  { name: 'release-whatsapp-sms-fallback', desc: 'SMS delivery for the ~20% of customers without WhatsApp', owner: 'Fatima Support Lead', rollout: 100 },
+];
 
 export default function FlagsPage() {
   const { openReasonModal, showToast } = useApp();
-  const [switches, setSwitches] = useState<KillSwitch[]>(KILL_SWITCHES);
-  const [flags, setFlags] = useState<FeatureFlag[]>(FEATURE_FLAGS);
+  const [killSwitches, setKillSwitches] = useState(INITIAL_KILL_SWITCHES);
+  const [rollouts, setRollouts] = useState(() => FEATURE_FLAGS.map(f => f.rollout));
 
-  function toggleKillSwitch(ks: KillSwitch) {
-    if (ks.active) {
+  function toggleKill(idx: number) {
+    const k = killSwitches[idx];
+    if (k.on) {
       openReasonModal(
-        `Disable "${ks.name}"`,
-        `Turning off this kill switch will ${ks.effect}. This action is logged.`,
+        `Disable ${k.name}?`,
+        `This pauses "${k.desc.toLowerCase()}" for every tenant on the platform, not just one.`,
         () => {
-          setSwitches(prev => prev.map(k => k.id === ks.id ? { ...k, active: false } : k));
-          showToast(`Kill switch "${ks.name}" disabled`);
-        },
+          setKillSwitches(prev => prev.map((s, i) => i === idx ? { ...s, on: false } : s));
+          showToast(`${k.name} disabled platform-wide`);
+        }
       );
     } else {
-      setSwitches(prev => prev.map(k => k.id === ks.id ? { ...k, active: true } : k));
-      showToast(`Kill switch "${ks.name}" enabled`);
+      setKillSwitches(prev => prev.map((s, i) => i === idx ? { ...s, on: true } : s));
+      showToast(`${k.name} re-enabled`);
     }
   }
 
-  function updateFlag(id: string, pct: number) {
-    setFlags(prev => prev.map(f => f.id === id ? { ...f, rolloutPct: pct } : f));
-  }
-
   return (
-    <div>
-      <div className="v6-page-head">
+    <div className="page-anim">
+      <div className="page-head">
         <h1>Feature Flags</h1>
-        <div className="v6-page-sub">Kill switches and gradual rollout controls for platform features</div>
+        <div className="page-sub">Kill switches and rollout controls — changes take effect immediately</div>
       </div>
 
-      {/* Kill switches */}
-      <div className="v6-zone">
-        <div className="v6-zone-head">
-          <span className="v6-zone-title">Kill switches</span>
-          <span className="v6-zone-sub">Default on. Only ever flipped off during an active incident.</span>
+      <div className="zone">
+        <div className="zone-head">
+          <span className="zone-title">Kill switches</span>
+          <span className="zone-sub">Default on. Only ever flipped off during an active incident.</span>
         </div>
-        {switches.map(ks => (
-          <div key={ks.id} className={`v6-switch-row${ks.active ? ' ks-active' : ''}`}>
-            <div className="v6-sw-text">
-              <div className="v6-sw-title">{ks.name}</div>
-              <div className="v6-sw-sub">{ks.effect} · Owner: {ks.owner}</div>
-            </div>
-            <button
-              className={`v6-css-switch${ks.active ? ' on' : ''}`}
-              onClick={() => toggleKillSwitch(ks)}
-              aria-label={ks.active ? 'Disable' : 'Enable'}
+        <div>
+          {killSwitches.map((k, i) => (
+            <div
+              key={k.name}
+              className="switch-row"
+              style={{ background: 'var(--destructive-tint)', borderColor: 'rgba(242,114,107,0.3)', marginBottom: i === killSwitches.length - 1 ? 0 : 8 }}
             >
-              <span className="v6-css-switch-knob" />
-            </button>
-          </div>
-        ))}
+              <div className="sw-text">
+                <div className="sw-title" style={{ fontFamily: 'monospace', fontSize: 12 }}>{k.name}</div>
+                <div className="sw-sub">{k.desc} · Owner: {k.owner}</div>
+              </div>
+              <button
+                className={`switch${k.on ? ' on' : ''}`}
+                role="switch"
+                aria-checked={k.on}
+                onClick={() => toggleKill(i)}
+              >
+                <span className="knob" />
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Rollout flags */}
-      <div className="v6-zone">
-        <div className="v6-zone-head">
-          <span className="v6-zone-title">Rollout flags</span>
-          <span className="v6-zone-sub">Gradual percentage rollout, never 0% to 100% in one step</span>
+      <div className="zone">
+        <div className="zone-head">
+          <span className="zone-title">Rollout flags</span>
+          <span className="zone-sub">Gradual percentage rollout, never 0% to 100% in one step</span>
         </div>
-        <div className="v6-flags-card">
-          {flags.map(f => (
-            <div key={f.id} className="v6-switch-row">
-              <div className="v6-sw-text">
-                <div className="v6-sw-title">{f.name}</div>
-                <div className="v6-sw-sub">{f.description} · Owner: {f.owner}</div>
+        <div className="card">
+          {FEATURE_FLAGS.map((f, i) => (
+            <div
+              key={f.name}
+              className="switch-row"
+              style={{ marginBottom: 0, borderRadius: 0, borderLeft: 'none', borderRight: 'none', borderTop: i === 0 ? '1px solid var(--border)' : 'none' }}
+            >
+              <div className="sw-text">
+                <div className="sw-title" style={{ fontFamily: 'monospace', fontSize: 12.5 }}>{f.name}</div>
+                <div className="sw-sub">{f.desc} · Owner: {f.owner}</div>
               </div>
-              <div className="v6-flag-control">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                 <input
                   type="range"
                   min={0}
                   max={100}
-                  value={f.rolloutPct}
-                  className="v6-flag-slider"
-                  onChange={e => updateFlag(f.id, +e.target.value)}
-                  onMouseUp={() => showToast(`"${f.name}" set to ${f.rolloutPct}%`)}
+                  value={rollouts[i]}
+                  onChange={e => setRollouts(prev => prev.map((v, j) => j === i ? parseInt(e.target.value) : v))}
+                  onMouseUp={e => showToast(`${f.name} rollout set to ${(e.target as HTMLInputElement).value}%`)}
+                  style={{ width: 100, accentColor: 'var(--accent)' }}
                 />
-                <span className="v6-flag-pct num">{f.rolloutPct}%</span>
+                <span className="num" style={{ fontSize: 12, fontWeight: 700, width: 36, textAlign: 'right' }}>
+                  {rollouts[i]}%
+                </span>
               </div>
             </div>
           ))}

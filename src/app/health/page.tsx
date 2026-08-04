@@ -1,67 +1,74 @@
 'use client';
-import React from 'react';
-import { useRouter } from 'next/navigation';
-import { COURIER_HEALTH, JOB_QUEUES, TENANTS } from '@/lib/data';
+import React, { useMemo } from 'react';
+import Link from 'next/link';
+import { TENANTS, seededRand } from '@/lib/data';
 
-const STATUS_CLASS: Record<string, string> = {
-  operational: 'scale',
-  degraded: 'monitor',
-  down: 'review',
-};
-const STATUS_LABEL: Record<string, string> = {
-  operational: 'Healthy',
-  degraded: 'Degraded',
-  down: 'Down',
-};
+const ALL_COURIERS = ['TCS','Leopards','PostEx','Trax','M&P','BlueEX','FedEx','Daewoo','Rider','SLG Trax','tranzo','BarqRaftar','Call Courier','DoDeliver'];
+const QUEUES: [string, number, string, number][] = [
+  ['order-processing', 12, '340/min', 0],
+  ['whatsapp-outbound', 340, '1.2k/min', 2],
+  ['courier-booking', 8, '95/min', 0],
+  ['ai-scoring', 4, '210/min', 0],
+  ['notification-dispatch', 56, '480/min', 1],
+  ['fbr-invoice-export', 2, '30/min', 0],
+  ['health-score-batch', 0, 'idle', 0],
+  ['webhook-delivery', 91, '150/min', 5],
+];
 
 export default function HealthPage() {
-  const router = useRouter();
+  const courierHealth = useMemo(() => {
+    const rand = seededRand('courier-health-v1');
+    return ALL_COURIERS.map(name => {
+      const r = rand();
+      const status = r > 0.93 ? 'down' : r > 0.8 ? 'degraded' : 'healthy';
+      const successRate = status === 'down' ? Math.floor(r * 20) : status === 'degraded' ? 70 + Math.floor(r * 15) : 95 + Math.floor(r * 5);
+      return {
+        name, status,
+        successRate,
+        latency: Math.floor(rand() * 400) + 120,
+        affectedTenants: status === 'healthy' ? 0 : Math.floor(rand() * 30) + 3,
+      };
+    });
+  }, []);
 
-  const waWatchList = TENANTS
-    .filter(t => t.health < 65 && t.deepDive.messagesSent > 400)
-    .map(t => ({ ...t, qualityScore: Math.max(20, Math.min(65, t.health - 15)) }))
-    .sort((a, b) => a.qualityScore - b.qualityScore)
-    .slice(0, 10);
+  const atRiskWa = TENANTS.filter(t => t.health < 65 && t.deepDive.messagesSent > 400).slice(0, 6);
+
+  function statusPill(status: string) {
+    if (status === 'healthy') return <span className="mini-pill scale">Healthy</span>;
+    if (status === 'degraded') return <span className="mini-pill monitor">Degraded</span>;
+    return <span className="mini-pill review">Down</span>;
+  }
 
   return (
-    <div>
-      <div className="v6-page-head">
+    <div className="page-anim">
+      <div className="page-head">
         <h1>Platform Health</h1>
-        <div className="v6-page-sub">API integrations, message quality, and job queues</div>
+        <div className="page-sub">Courier API status, WhatsApp quality signals, and job queue depths</div>
       </div>
 
-      {/* Courier APIs */}
-      <div className="v6-zone">
-        <div className="v6-zone-head">
-          <span className="v6-zone-title">Courier API status</span>
-          <span className="v6-zone-sub">All {COURIER_HEALTH.length} couriers</span>
+      <div className="zone">
+        <div className="zone-head">
+          <span className="zone-title">Courier API health</span>
+          <span className="zone-sub">Live success rate and latency from our booking integrations</span>
         </div>
-        <div className="v6-card v6-track-scroll">
-          <table className="v6-tenant-table">
+        <div className="card track-scroll">
+          <table className="compare-table">
             <thead>
               <tr>
                 <th>Courier</th>
                 <th>Status</th>
-                <th>Success rate (7d)</th>
-                <th>P95 latency</th>
+                <th>Success rate</th>
+                <th>Latency</th>
                 <th>Affected tenants</th>
               </tr>
             </thead>
             <tbody>
-              {COURIER_HEALTH.map(c => (
-                <tr key={c.name} className="v6-tenant-row" style={{ cursor: 'default' }}>
+              {courierHealth.map(c => (
+                <tr key={c.name}>
                   <td style={{ fontWeight: 700 }}>{c.name}</td>
-                  <td>
-                    <span className={`v6-mini-pill ${STATUS_CLASS[c.status]}`}>
-                      {STATUS_LABEL[c.status]}
-                    </span>
-                  </td>
-                  <td className="num" style={{ color: c.successRate >= 95 ? 'var(--v6-accent-light)' : c.successRate >= 80 ? 'var(--v6-warning)' : 'var(--v6-destructive)' }}>
-                    {c.successRate}%
-                  </td>
-                  <td className="num" style={{ color: c.latencyMs > 2000 ? 'var(--v6-destructive)' : c.latencyMs > 800 ? 'var(--v6-warning)' : 'var(--v6-text-2)' }}>
-                    {c.latencyMs}ms
-                  </td>
+                  <td>{statusPill(c.status)}</td>
+                  <td className="num">{c.successRate}%</td>
+                  <td className="num">{c.latency}ms</td>
                   <td className="num">{c.affectedTenants > 0 ? c.affectedTenants : '—'}</td>
                 </tr>
               ))}
@@ -70,64 +77,57 @@ export default function HealthPage() {
         </div>
       </div>
 
-      {/* WhatsApp quality — risk-list style */}
-      <div className="v6-zone">
-        <div className="v6-zone-head">
-          <span className="v6-zone-title">WhatsApp quality watch list</span>
-          <span className="v6-zone-sub">Stores with health &lt;65 and &gt;400 messages sent — at risk of Meta review</span>
+      <div className="zone">
+        <div className="zone-head">
+          <span className="zone-title">WhatsApp number quality watch-list</span>
+          <span className="zone-sub">Tenants with dropping quality scores and high message volume</span>
         </div>
-        {waWatchList.length === 0 ? (
-          <div className="v6-card" style={{ padding: 32, textAlign: 'center', color: 'var(--v6-text-3)' }}>
-            No stores currently in the watch list.
-          </div>
-        ) : (
-          <div className="v6-risk-list">
-            {waWatchList.map(t => (
-              <div
-                key={t.id}
-                className="v6-risk-row"
-                style={{ cursor: 'pointer' }}
-                onClick={() => router.push(`/tenants/${t.id}`)}
-              >
-                <div className="v6-risk-score-badge atrisk">{t.qualityScore}</div>
-                <div className="v6-risk-row-info">
-                  <div className="v6-rn-name">{t.name}</div>
-                  <div className="v6-rn-sub">Quality score dropping · {t.deepDive.messagesSent.toLocaleString('en-US')} messages/30d</div>
+        <div className="risk-list">
+          {atRiskWa.length === 0 ? (
+            <div className="risk-row" style={{ cursor: 'default' }}>
+              <div className="risk-row-info"><div className="rn-sub">No numbers currently at risk.</div></div>
+            </div>
+          ) : atRiskWa.map(t => {
+            const quality = Math.max(20, Math.min(65, t.health - 15));
+            return (
+              <Link key={t.id} href={`/tenants/${t.id}`} className="risk-row">
+                <div className="risk-score-badge atrisk">{quality}</div>
+                <div className="risk-row-info">
+                  <div className="rn-name">{t.name}</div>
+                  <div className="rn-sub">Quality score dropping · {t.deepDive.messagesSent.toLocaleString('en-US')} messages/30d</div>
                 </div>
-                <span className="v6-risk-tag atrisk">Watch</span>
-                <svg className="v6-risk-chev" width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <span className="risk-tag atrisk">Watch</span>
+                <svg className="risk-chev" width="14" height="14" viewBox="0 0 16 16" fill="none">
                   <path d="M6 3.5L11 8l-5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-              </div>
-            ))}
-          </div>
-        )}
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Job queues */}
-      <div className="v6-zone">
-        <div className="v6-zone-head">
-          <span className="v6-zone-title">Job queues</span>
+      <div className="zone">
+        <div className="zone-head">
+          <span className="zone-title">Job queue depths</span>
+          <span className="zone-sub">Processing rate and failed jobs by queue</span>
         </div>
-        <div className="v6-card v6-track-scroll">
-          <table className="v6-compare-table">
+        <div className="card track-scroll">
+          <table className="compare-table">
             <thead>
               <tr>
                 <th>Queue</th>
-                <th>Depth (pending)</th>
-                <th>Processing rate</th>
-                <th>Failed (24h)</th>
+                <th>Depth</th>
+                <th>Rate</th>
+                <th>Failed</th>
               </tr>
             </thead>
             <tbody>
-              {JOB_QUEUES.map(q => (
-                <tr key={q.name}>
-                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, fontWeight: 700 }}>{q.name}</td>
-                  <td className="num">{q.pending.toLocaleString('en-US')}</td>
-                  <td className="num">{q.processing.toLocaleString('en-US')}/min</td>
-                  <td className="num" style={{ color: q.failed > 0 ? 'var(--v6-warning)' : 'var(--v6-text-3)' }}>
-                    {q.failed > 0 ? q.failed : '—'}
-                  </td>
+              {QUEUES.map(([name, depth, rate, failed]) => (
+                <tr key={name}>
+                  <td style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 11.5 }}>{name}</td>
+                  <td className="num">{depth}</td>
+                  <td className="num">{rate}</td>
+                  <td className="num" style={{ color: failed > 0 ? 'var(--warning)' : 'var(--text-3)' }}>{failed}</td>
                 </tr>
               ))}
             </tbody>

@@ -3,95 +3,85 @@ import React, { useState, useMemo } from 'react';
 import { FULL_AUDIT_LOG } from '@/lib/data';
 
 const TYPE_CHIPS = [
-  { key: 'all', label: 'All' },
-  { key: 'impersonation', label: 'Impersonation' },
-  { key: 'pii', label: 'PII unmask' },
-  { key: 'billing', label: 'Billing' },
-  { key: 'account', label: 'Account changes' },
+  { label: 'All', value: 'all' },
+  { label: 'Impersonation', value: 'impersonation' },
+  { label: 'PII access', value: 'pii' },
+  { label: 'Billing', value: 'billing' },
+  { label: 'Account', value: 'account' },
 ];
 
 export default function AuditPage() {
-  const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [filterType, setFilterType] = useState('all');
+  const [searchQ, setSearchQ] = useState('');
 
   const filtered = useMemo(() => {
-    return FULL_AUDIT_LOG.filter(a => {
-      const matchType = typeFilter === 'all' || a.type === typeFilter;
-      const q = search.toLowerCase();
-      const matchSearch = !q || a.admin.toLowerCase().includes(q) || a.tenant.toLowerCase().includes(q) || a.action.toLowerCase().includes(q);
-      return matchType && matchSearch;
-    }).slice(0, 50);
-  }, [search, typeFilter]);
+    let list = FULL_AUDIT_LOG.filter(a => filterType === 'all' || a.type === filterType);
+    if (searchQ) {
+      const q = searchQ.toLowerCase();
+      list = list.filter(a => a.admin.toLowerCase().includes(q) || a.tenant.toLowerCase().includes(q) || a.action.toLowerCase().includes(q));
+    }
+    return list;
+  }, [filterType, searchQ]);
 
   return (
-    <div>
-      <div className="v6-page-head">
+    <div className="page-anim">
+      <div className="page-head">
         <h1>Audit Log</h1>
-        <div className="v6-page-sub">All admin actions — immutable, append-only</div>
+        <div className="page-sub">Every admin action, immutably recorded — 90-day retention</div>
       </div>
 
-      <div className="v6-zone">
-        <div className="v6-table-controls">
-          <div className="v6-search-box">
+      <div className="zone">
+        <div className="table-controls" style={{ marginBottom: 14 }}>
+          <div className="search-box">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
               <circle cx="7" cy="7" r="5.2" stroke="currentColor" strokeWidth="1.6"/>
             </svg>
             <input
               placeholder="Search by admin, tenant, or action…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+              value={searchQ}
+              onChange={e => setSearchQ(e.target.value)}
             />
           </div>
-          {TYPE_CHIPS.map(chip => (
+          {TYPE_CHIPS.map(c => (
             <button
-              key={chip.key}
-              className={`v6-filter-chip${typeFilter === chip.key ? ' active' : ''}`}
-              onClick={() => setTypeFilter(chip.key)}
+              key={c.value}
+              className={`filter-chip${filterType === c.value ? ' active' : ''}`}
+              onClick={() => setFilterType(c.value)}
             >
-              {chip.label}
+              {c.label}
             </button>
           ))}
         </div>
-        <div className="v6-tenant-meta" style={{ marginBottom: 10 }}>
-          {filtered.length === Math.min(FULL_AUDIT_LOG.length, 50)
-            ? `${filtered.length} entries`
-            : `${filtered.length} of ${FULL_AUDIT_LOG.length} matching`}
+
+        <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginBottom: 10 }}>
+          Showing {filtered.length} of {FULL_AUDIT_LOG.length} events
         </div>
 
-        <div className="v6-card v6-track-scroll">
-          {filtered.length === 0 ? (
-            <p style={{ padding: 32, textAlign: 'center', color: 'var(--v6-text-3)' }}>No entries match this filter</p>
-          ) : (
-            <table className="v6-compare-table">
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Admin</th>
-                  <th>Action</th>
-                  <th>Tenant</th>
-                  <th>Reason</th>
+        <div className="card track-scroll">
+          <table className="tenant-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Admin</th>
+                <th>Action</th>
+                <th>Tenant</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--text-3)' }}>No matching events.</td></tr>
+              ) : filtered.slice(0, 50).map((a, i) => (
+                <tr key={i}>
+                  <td className="num" style={{ color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{a.time}</td>
+                  <td style={{ fontWeight: 700 }}>{a.admin}</td>
+                  <td>{a.action}</td>
+                  <td>{a.tenant}</td>
+                  <td style={{ color: 'var(--text-3)' }}>{a.reason}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {filtered.map((a, i) => (
-                  <tr key={i}>
-                    <td style={{ color: 'var(--v6-text-3)', whiteSpace: 'nowrap', fontSize: 12 }}>{a.time}</td>
-                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{a.admin}</td>
-                    <td>
-                      <span className={`v6-audit-type-chip ${a.type}`} style={{ marginRight: 8 }}>
-                        {TYPE_CHIPS.find(c => c.key === a.type)?.label ?? a.type}
-                      </span>
-                      {a.action}
-                    </td>
-                    <td style={{ color: 'var(--v6-text-2)' }}>{a.tenant || '—'}</td>
-                    <td style={{ color: 'var(--v6-text-3)', fontStyle: a.reason ? 'italic' : 'normal', fontSize: 12 }}>
-                      {a.reason || '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

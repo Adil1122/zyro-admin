@@ -42,10 +42,7 @@ export default function CommandPalette({ open, onClose }: Props) {
   })();
 
   useEffect(() => { setActiveIdx(0); }, [query]);
-
-  useEffect(() => {
-    if (open) { setQuery(''); setActiveIdx(0); }
-  }, [open]);
+  useEffect(() => { if (open) { setQuery(''); setActiveIdx(0); } }, [open]);
 
   const select = useCallback((item: CmdItem) => {
     onClose();
@@ -65,7 +62,6 @@ export default function CommandPalette({ open, onClose }: Props) {
     return () => document.removeEventListener('keydown', handler);
   }, [open, items, activeIdx, select, onClose]);
 
-  // Global ⌘K / Ctrl+K listener is in ClientLayout
   if (!open) return null;
 
   const navItems = items.filter(i => i.type === 'nav') as { type: 'nav'; label: string; path: string }[];
@@ -73,30 +69,31 @@ export default function CommandPalette({ open, onClose }: Props) {
   let idx = 0;
 
   return (
-    <div className="v6-cmdk-overlay show" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="v6-cmdk-box">
-        <div className="v6-cmdk-input-row">
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.2" stroke="currentColor" strokeWidth="1.6"/></svg>
+    <div className="cmdk-overlay show" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="cmdk-box">
+        <div className="cmdk-input-row">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+            <circle cx="7" cy="7" r="5.2" stroke="currentColor" strokeWidth="1.6"/>
+          </svg>
           <input
             autoFocus
-            className="v6-cmdk-input"
             placeholder="Search tenants, or jump to a section…"
             value={query}
             onChange={e => setQuery(e.target.value)}
           />
-          <span className="v6-cmdk-hint">esc</span>
+          <span className="cmdk-hint">esc</span>
         </div>
-        <div className="v6-cmdk-results">
-          {items.length === 0 && <div className="v6-cmdk-empty">No matches for &ldquo;{query}&rdquo;</div>}
+        <div className="cmdk-results">
+          {items.length === 0 && <div className="cmdk-empty">No matches for &ldquo;{query}&rdquo;</div>}
           {navItems.length > 0 && (
             <>
-              <div className="v6-cmdk-section-label">Go to</div>
+              <div className="cmdk-section-label">Go to</div>
               {navItems.map(item => {
                 const i = idx++;
                 return (
-                  <button key={item.path} className={`v6-cmdk-item${i === activeIdx ? ' active' : ''}`}
+                  <button key={item.path} className={`cmdk-item${i === activeIdx ? ' active' : ''}`}
                     onMouseEnter={() => setActiveIdx(i)} onClick={() => select(item)}>
-                    <span className="v6-cmdk-ic">→</span>
+                    <span className="ic">→</span>
                     {item.label}
                   </button>
                 );
@@ -105,15 +102,15 @@ export default function CommandPalette({ open, onClose }: Props) {
           )}
           {tenantItems.length > 0 && (
             <>
-              <div className="v6-cmdk-section-label">Tenants</div>
+              <div className="cmdk-section-label">Tenants</div>
               {tenantItems.map(item => {
                 const i = idx++;
                 return (
-                  <button key={item.tenant.id} className={`v6-cmdk-item${i === activeIdx ? ' active' : ''}`}
+                  <button key={item.tenant.id} className={`cmdk-item${i === activeIdx ? ' active' : ''}`}
                     onMouseEnter={() => setActiveIdx(i)} onClick={() => select(item)}>
-                    <span className="v6-cmdk-ic">{item.tenant.initials}</span>
+                    <span className="ic">{item.tenant.initials}</span>
                     {item.tenant.name}
-                    <span className="v6-cmdk-sub">{item.tenant.plan} · health {item.tenant.health}</span>
+                    <span className="sub">{item.tenant.plan} · health {item.tenant.health}</span>
                   </button>
                 );
               })}

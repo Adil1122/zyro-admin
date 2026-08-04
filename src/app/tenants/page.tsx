@@ -1,129 +1,90 @@
 'use client';
-import React, { useState, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { TENANTS } from '@/lib/data';
-import type { Tenant, HealthBand } from '@/lib/types';
-import { useApp } from '@/lib/context';
 
 type SortKey = 'name' | 'plan' | 'mrr' | 'status' | 'health' | 'orders30d';
-type FilterBand = 'all' | HealthBand;
-const FILTER_CHIPS: { key: FilterBand; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'healthy', label: 'Healthy' },
-  { key: 'watch', label: 'Watch' },
-  { key: 'atrisk', label: 'At risk' },
-  { key: 'critical', label: 'Critical' },
-];
-const PAGE_SIZES = [25, 50, 100];
+type HealthFilter = 'all' | 'healthy' | 'watch' | 'atrisk' | 'critical';
 
-function SkeletonRows({ n }: { n: number }) {
+const SKELETON_ROWS = Array.from({ length: 8 });
+
+function SkeletonRow() {
   return (
-    <>
-      {Array.from({ length: n }).map((_, i) => (
-        <tr key={i} className="v6-skeleton-row">
-          <td><div className="v6-skeleton-cell" style={{ width: 16, height: 16, borderRadius: 5 }} /></td>
-          {[70, 50, 40, 60, 30, 35].map((w, j) => (
-            <td key={j}><div className="v6-skeleton-cell" style={{ width: `${w}%` }} /></td>
-          ))}
-        </tr>
-      ))}
-    </>
+    <tr className="skeleton-row">
+      <td><div className="skeleton-cell" style={{ width: 16, height: 16, borderRadius: 5 }} /></td>
+      <td><div className="skeleton-cell" style={{ width: '70%' }} /></td>
+      <td><div className="skeleton-cell" style={{ width: '50%' }} /></td>
+      <td><div className="skeleton-cell" style={{ width: '40%' }} /></td>
+      <td><div className="skeleton-cell" style={{ width: '60%' }} /></td>
+      <td><div className="skeleton-cell" style={{ width: '30%' }} /></td>
+      <td><div className="skeleton-cell" style={{ width: '35%' }} /></td>
+    </tr>
   );
 }
 
 export default function TenantsPage() {
-  const router = useRouter();
-  const { showToast } = useApp();
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<FilterBand>('all');
+  const [healthFilter, setHealthFilter] = useState<HealthFilter>('all');
+  const [searchQ, setSearchQ] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('mrr');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(false);
+  const [showSkeleton, setShowSkeleton] = useState(false);
 
   const filtered = useMemo(() => {
-    let list = TENANTS.filter(t => filter === 'all' || t.band === filter);
-    if (search) {
-      const q = search.toLowerCase();
+    let list = TENANTS.filter(t => healthFilter === 'all' || t.band === healthFilter);
+    if (searchQ) {
+      const q = searchQ.toLowerCase();
       list = list.filter(t => t.name.toLowerCase().includes(q) || t.owner.toLowerCase().includes(q) || t.phone.includes(q));
     }
     list = [...list].sort((a, b) => {
-      const av = a[sortKey] as string | number;
-      const bv = b[sortKey] as string | number;
-      if (typeof av === 'string' && typeof bv === 'string') {
-        return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
-      }
-      return sortDir === 'asc' ? (av as number) - (bv as number) : (bv as number) - (av as number);
+      let av: string | number = a[sortKey as keyof typeof a] as string | number;
+      let bv: string | number = b[sortKey as keyof typeof b] as string | number;
+      if (typeof av === 'string') { av = av.toLowerCase(); bv = (bv as string).toLowerCase(); }
+      if (av < bv) return sortDir === 'asc' ? -1 : 1;
+      if (av > bv) return sortDir === 'asc' ? 1 : -1;
+      return 0;
     });
     return list;
-  }, [search, filter, sortKey, sortDir]);
+  }, [healthFilter, searchQ, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
-  const pageItems = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const start = (safePage - 1) * pageSize;
+  const pageItems = filtered.slice(start, start + pageSize);
 
   function handleSort(key: SortKey) {
-    setLoading(true);
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('desc'); }
     setPage(1);
-    setTimeout(() => setLoading(false), 220);
+    setShowSkeleton(true);
+    setTimeout(() => setShowSkeleton(false), 220);
   }
 
-  function handleFilter(f: FilterBand) {
-    setFilter(f);
-    setPage(1);
-    setLoading(true);
-    setTimeout(() => setLoading(false), 220);
-  }
-
-  function handleSearch(q: string) {
-    setSearch(q);
-    setPage(1);
-  }
-
-  const toggleSelect = useCallback((id: string, e: React.MouseEvent) => {
+  function toggleSelect(id: string, e: React.MouseEvent) {
     e.stopPropagation();
-    setSelected(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }, []);
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
 
-  function togglePageAll() {
+  function toggleSelectAll() {
     const ids = pageItems.map(t => t.id);
-    const allSelected = ids.every(id => selected.has(id));
-    setSelected(prev => {
-      const next = new Set(prev);
-      ids.forEach(id => allSelected ? next.delete(id) : next.add(id));
-      return next;
-    });
+    const allSel = ids.every(id => selected.has(id));
+    setSelected(prev => { const n = new Set(prev); ids.forEach(id => allSel ? n.delete(id) : n.add(id)); return n; });
   }
 
-  function SortArrow({ k }: { k: SortKey }) {
-    const active = sortKey === k;
-    return <span className={`v6-sort-arrow${active ? ' active' : ''}${active && sortDir === 'desc' ? ' desc' : ''}`}>▾</span>;
-  }
-
-  function StatusPill({ status }: { status: Tenant['status'] }) {
-    const cls = status === 'active' ? 'active' : status === 'trial' ? 'trial' : 'past_due';
-    const label = status === 'past_due' ? 'Past due' : status.charAt(0).toUpperCase() + status.slice(1);
-    return <span className={`v6-status-pill ${cls}`}>{label}</span>;
-  }
-
-  function HealthPip({ t }: { t: Tenant }) {
+  function sortTh(key: SortKey, label: string) {
+    const active = sortKey === key;
     return (
-      <span className="v6-health-pip">
-        <span className={`v6-health-dot ${t.band}`} />
-        {t.health}
-      </span>
+      <th
+        className={`sortable${active ? ' sort-active' : ''}${active && sortDir === 'desc' ? ' sort-desc' : ''}`}
+        onClick={() => handleSort(key)}
+      >
+        {label}<span className="sort-arrow">▾</span>
+      </th>
     );
   }
 
-  // Pagination pages array
   const pages: (number | '…')[] = [];
   for (let p = 1; p <= totalPages; p++) {
     if (p === 1 || p === totalPages || Math.abs(p - safePage) <= 1) pages.push(p);
@@ -131,117 +92,140 @@ export default function TenantsPage() {
   }
 
   return (
-    <div>
-      <div className="v6-page-head">
+    <div className="page-anim">
+      <div className="page-head">
         <h1>Tenants</h1>
-        <div className="v6-page-sub">Search, filter, and drill into any tenant account</div>
+        <div className="page-sub">Search, filter, and drill into any tenant account</div>
       </div>
 
-      <div className="v6-zone">
-        {/* Controls */}
-        <div className="v6-table-controls">
-          <div className="v6-search-box">
+      <div className="zone">
+        <div className="table-controls" style={{ marginBottom: 14 }}>
+          <div className="search-box">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
               <circle cx="7" cy="7" r="5.2" stroke="currentColor" strokeWidth="1.6"/>
             </svg>
-            <input placeholder="Search by name, phone, email…" value={search} onChange={e => handleSearch(e.target.value)} />
+            <input
+              placeholder="Search by name, phone, email…"
+              value={searchQ}
+              onChange={e => { setSearchQ(e.target.value); setPage(1); setShowSkeleton(true); setTimeout(() => setShowSkeleton(false), 220); }}
+            />
           </div>
-          {FILTER_CHIPS.map(chip => (
-            <button key={chip.key} className={`v6-filter-chip${filter === chip.key ? ' active' : ''}`} onClick={() => handleFilter(chip.key)}>
-              {chip.label}
+          {(['all', 'healthy', 'watch', 'atrisk', 'critical'] as HealthFilter[]).map(f => (
+            <button
+              key={f}
+              className={`filter-chip${healthFilter === f ? ' active' : ''}`}
+              onClick={() => { setHealthFilter(f); setPage(1); setShowSkeleton(true); setTimeout(() => setShowSkeleton(false), 220); }}
+            >
+              {f === 'all' ? 'All' : f === 'atrisk' ? 'At risk' : f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
         </div>
 
-        <div className="v6-tenant-meta">{filtered.length === TENANTS.length ? `${TENANTS.length} tenants` : `Showing ${filtered.length} of ${TENANTS.length} tenants`}</div>
+        <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginBottom: 10 }}>
+          Showing {filtered.length} of {TENANTS.length} tenants
+        </div>
 
-        {/* Table */}
-        <div className="v6-card v6-track-scroll">
-          <table className="v6-tenant-table">
+        <div className="card track-scroll">
+          <table className="tenant-table">
             <thead>
               <tr>
-                <th className="v6-th-select">
-                  <span
-                    className={`v6-select-checkbox${pageItems.every(t => selected.has(t.id)) && pageItems.length > 0 ? ' checked' : ''}`}
-                    onClick={togglePageAll}
-                  >
+                <th className="th-select">
+                  <span className="select-checkbox" onClick={toggleSelectAll}>
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                      <path d="M1.5 5l2.5 2.5L8.5 2" stroke="var(--v6-accent-ink)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M1.5 5l2.5 2.5L8.5 2" stroke="#04231a" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </span>
                 </th>
-                {(['name','plan','mrr','status','health','orders30d'] as SortKey[]).map(k => (
-                  <th key={k} className="v6-sortable" onClick={() => handleSort(k)}>
-                    {k === 'name' ? 'Tenant' : k === 'mrr' ? 'MRR' : k === 'orders30d' ? 'Orders (30d)' : k.charAt(0).toUpperCase() + k.slice(1)}
-                    <SortArrow k={k} />
-                  </th>
-                ))}
+                {sortTh('name', 'Tenant')}
+                {sortTh('plan', 'Plan')}
+                {sortTh('mrr', 'MRR')}
+                {sortTh('status', 'Status')}
+                {sortTh('health', 'Health')}
+                {sortTh('orders30d', 'Orders (30d)')}
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <SkeletonRows n={Math.min(pageSize, 8)} />
-              ) : pageItems.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: 'var(--v6-text-3)' }}>No tenants match this search or filter</td></tr>
-              ) : (
-                pageItems.map(t => (
-                  <tr key={t.id} className="v6-tenant-row" onClick={() => router.push(`/tenants/${t.id}`)}>
-                    <td className="v6-td-select">
+              {showSkeleton
+                ? SKELETON_ROWS.map((_, i) => <SkeletonRow key={i} />)
+                : pageItems.length === 0
+                ? <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)' }}>No tenants match this search or filter</td></tr>
+                : pageItems.map(t => (
+                  <tr key={t.id} className="tenant-row">
+                    <td className="td-select">
                       <span
-                        className={`v6-select-checkbox${selected.has(t.id) ? ' checked' : ''}`}
+                        className={`select-checkbox${selected.has(t.id) ? ' checked' : ''}`}
                         onClick={e => toggleSelect(t.id, e)}
                       >
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                          <path d="M1.5 5l2.5 2.5L8.5 2" stroke="var(--v6-accent-ink)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M1.5 5l2.5 2.5L8.5 2" stroke="#04231a" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                       </span>
                     </td>
                     <td>
-                      <div className="v6-t-name">{t.name}</div>
-                      <div className="v6-t-sub">{t.owner} · {t.city}</div>
+                      <Link href={`/tenants/${t.id}`}>
+                        <div className="t-name">{t.name}</div>
+                        <div className="t-sub">{t.owner} · {t.city}</div>
+                      </Link>
                     </td>
-                    <td>{t.plan}</td>
-                    <td className="num">Rs {t.mrr.toLocaleString('en-US')}</td>
-                    <td><StatusPill status={t.status} /></td>
-                    <td><HealthPip t={t} /></td>
-                    <td className="num">{t.orders30d}</td>
+                    <td><Link href={`/tenants/${t.id}`}>{t.plan}</Link></td>
+                    <td className="num"><Link href={`/tenants/${t.id}`}>Rs {t.mrr.toLocaleString('en-US')}</Link></td>
+                    <td>
+                      <Link href={`/tenants/${t.id}`}>
+                        <span className={`status-pill ${t.status}`}>
+                          {t.status === 'past_due' ? 'Past due' : t.status.charAt(0).toUpperCase() + t.status.slice(1)}
+                        </span>
+                      </Link>
+                    </td>
+                    <td>
+                      <Link href={`/tenants/${t.id}`}>
+                        <span className="health-pip">
+                          <span className={`health-dot ${t.band}`} />
+                          {t.health}
+                        </span>
+                      </Link>
+                    </td>
+                    <td className="num"><Link href={`/tenants/${t.id}`}>{t.orders30d}</Link></td>
                   </tr>
                 ))
-              )}
+              }
             </tbody>
           </table>
         </div>
 
-        {/* Pagination */}
-        <div className="v6-pagination-bar">
-          <div className="v6-pagination-info">
-            {filtered.length === 0 ? 'No results' : `Showing ${(safePage - 1) * pageSize + 1}–${Math.min(safePage * pageSize, filtered.length)} of ${filtered.length}`}
+        <div className="pagination-bar">
+          <div className="pagination-info">
+            {filtered.length === 0 ? 'No results' : `Showing ${start + 1}–${Math.min(safePage * pageSize, filtered.length)} of ${filtered.length}`}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <select className="v6-page-size-select" value={pageSize} onChange={e => { setPageSize(+e.target.value); setPage(1); }}>
-              {PAGE_SIZES.map(s => <option key={s} value={s}>{s} / page</option>)}
+            <select
+              className="page-size-select"
+              value={pageSize}
+              onChange={e => { setPageSize(parseInt(e.target.value)); setPage(1); }}
+            >
+              <option value={25}>25 / page</option>
+              <option value={50}>50 / page</option>
+              <option value={100}>100 / page</option>
             </select>
-            <div className="v6-pagination-controls">
-              <button className="v6-page-btn" disabled={safePage === 1} onClick={() => setPage(p => p - 1)}>‹</button>
+            <div className="pagination-controls">
+              <button className="page-btn" disabled={safePage === 1} onClick={() => setPage(p => p - 1)}>‹</button>
               {pages.map((p, i) =>
                 p === '…'
-                  ? <span key={i} className="v6-page-btn" style={{ cursor: 'default', border: 'none', background: 'none' }}>…</span>
-                  : <button key={p} className={`v6-page-btn${safePage === p ? ' active' : ''}`} onClick={() => setPage(p as number)}>{p}</button>
+                  ? <span key={i} className="page-btn" style={{ cursor: 'default', border: 'none', background: 'none' }}>…</span>
+                  : <button key={p} className={`page-btn${p === safePage ? ' active' : ''}`} onClick={() => setPage(p as number)}>{p}</button>
               )}
-              <button className="v6-page-btn" disabled={safePage === totalPages} onClick={() => setPage(p => p + 1)}>›</button>
+              <button className="page-btn" disabled={safePage === totalPages} onClick={() => setPage(p => p + 1)}>›</button>
             </div>
           </div>
         </div>
 
-        {/* Bulk bar */}
         {selected.size > 0 && (
-          <div className="v6-bulk-bar">
-            <strong>{selected.size} selected</strong>
-            <button className="v6-bulk-clear" onClick={() => setSelected(new Set())}>Clear</button>
-            <div className="v6-bulk-actions">
-              <button className="v6-btn-sm" onClick={() => showToast(`Extended trial for ${selected.size} tenants`)}>Extend trial</button>
-              <button className="v6-btn-sm" onClick={() => showToast(`Tagged ${selected.size} tenants`)}>Tag cohort</button>
-              <button className="v6-btn-sm" onClick={() => showToast(`Exporting ${selected.size} tenants to CSV…`)}>Export CSV</button>
+          <div className="bulk-bar show">
+            <b>{selected.size} selected</b>
+            <button className="bulk-clear" onClick={() => setSelected(new Set())}>Clear</button>
+            <div className="bulk-actions">
+              <button className="btn-sm" onClick={() => {}}>Extend trial</button>
+              <button className="btn-sm" onClick={() => {}}>Tag cohort</button>
+              <button className="btn-sm" onClick={() => {}}>Export CSV</button>
             </div>
           </div>
         )}

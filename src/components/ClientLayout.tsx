@@ -21,6 +21,14 @@ function AppShell({ children }: { children: React.ReactNode }) {
     if (!isLoggedIn) router.replace('/login');
   }, [isLoggedIn, router]);
 
+  useEffect(() => {
+    if (impersonating) {
+      document.body.classList.add('impersonating');
+    } else {
+      document.body.classList.remove('impersonating');
+    }
+  }, [impersonating]);
+
   const openCmdk = useCallback(() => setCmdkOpen(true), []);
 
   useEffect(() => {
@@ -39,14 +47,14 @@ function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <ImpersonationBanner />
-      <div className={`v6-app${impersonating ? ' impersonating' : ''}`}>
+      <div className="app-shell">
         {drawerOpen && (
-          <div className="v6-drawer-backdrop" onClick={() => setDrawerOpen(false)} />
+          <div className="drawer-backdrop show" onClick={() => setDrawerOpen(false)} />
         )}
         <Sidebar drawerOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
-        <div className="v6-main">
+        <div className="main">
           <Topbar onHamburger={() => setDrawerOpen(true)} onCmdK={openCmdk} />
-          <div className="v6-content">{children}</div>
+          <div className="content">{children}</div>
         </div>
       </div>
       <CommandPalette open={cmdkOpen} onClose={() => setCmdkOpen(false)} />

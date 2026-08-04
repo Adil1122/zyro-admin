@@ -1,113 +1,82 @@
 'use client';
-import React, { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState } from 'react';
 import { TENANTS } from '@/lib/data';
 import { useApp } from '@/lib/context';
 
-const FBR_THRESHOLD = 7_500_000;
-
-const APPEAL_INITIAL = [
-  { id: 'a1', phone: '+9230xxxx1122', tenant: "Sana's Boutique", reason: "Customer says courier marked RTO but they never received a delivery attempt" },
-  { id: 'a2', phone: '+9230xxxx7788', tenant: 'Lahore Kicks', reason: "Flagged after 2 refused deliveries — customer says wrong address on file, now corrected" },
-  { id: 'a3', phone: '+9230xxxx4411', tenant: 'Glow Cosmetics', reason: "Blocked for suspected fake return, customer disputes and has photo proof of unopened package" },
+const APPEALS = [
+  { phone: '+9230xxxx1122', tenant: "Sana's Boutique", reason: 'Customer says courier marked RTO but they never received a delivery attempt' },
+  { phone: '+9230xxxx7788', tenant: 'Lahore Kicks', reason: 'Flagged after 2 refused deliveries — customer says wrong address on file, now corrected' },
+  { phone: '+9230xxxx4411', tenant: 'Glow Cosmetics', reason: 'Blocked for suspected fake return, customer disputes and has photo proof of unopened package' },
 ];
 
 export default function RiskPage() {
-  const router = useRouter();
   const { showToast } = useApp();
-  const [appeals, setAppeals] = useState(APPEAL_INITIAL);
 
-  const fbrTable = useMemo(() => {
-    return TENANTS
-      .map(t => ({ ...t, annualRevenue: t.deepDive.salesTotal * 12 }))
-      .filter(t => t.annualRevenue > 5_500_000 && t.annualRevenue < 8_500_000)
-      .sort((a, b) => b.annualRevenue - a.annualRevenue)
-      .slice(0, 20);
-  }, []);
-
-  function handleAppeal(id: string, action: 'approve' | 'deny') {
-    const a = appeals.find(x => x.id === id);
-    if (!a) return;
-    setAppeals(prev => prev.filter(x => x.id !== id));
-    showToast(action === 'approve' ? 'Appeal approved — risk score cleared' : 'Appeal denied — flag stands');
-  }
+  const nearThreshold = TENANTS.filter(t => {
+    const annual = t.deepDive.salesTotal * 12;
+    return annual > 5500000 && annual < 8500000;
+  }).slice(0, 6);
 
   return (
-    <div>
-      <div className="v6-page-head">
-        <h1>Risk & Compliance</h1>
-        <div className="v6-page-sub">RTO intelligence, appeal queue, and FBR revenue threshold tracking</div>
+    <div className="page-anim">
+      <div className="page-head">
+        <h1>Risk &amp; Compliance</h1>
+        <div className="page-sub">COD fraud appeals and FBR registration thresholds</div>
       </div>
 
-      <div className="v6-mini-metric-grid" style={{ marginBottom: 24 }}>
-        <div className="v6-mini-metric"><label>RTO intel opt-in rate</label><b className="num" style={{ color: 'var(--v6-accent-light)' }}>78%</b></div>
-        <div className="v6-mini-metric"><label>Pending appeals</label><b className="num" style={{ color: appeals.length > 0 ? 'var(--v6-warning)' : 'var(--v6-accent-light)' }}>{appeals.length}</b></div>
-        <div className="v6-mini-metric"><label>Blocklisted numbers</label><b className="num">142</b></div>
-        <div className="v6-mini-metric"><label>Unregistered (no NTN)</label><b className="num" style={{ color: 'var(--v6-warning)' }}>18</b></div>
-      </div>
-
-      {/* Appeals */}
-      <div className="v6-zone">
-        <div className="v6-zone-head">
-          <span className="v6-zone-title">Pending appeals</span>
-          <span className="v6-zone-sub">RTO & chargeback dispute resolution</span>
+      <div className="zone">
+        <div className="zone-head">
+          <span className="zone-title">COD fraud appeals</span>
+          <span className="zone-sub">Merchants contesting an automated fraud flag</span>
         </div>
-        {appeals.length === 0 ? (
-          <div className="v6-card" style={{ padding: 32, textAlign: 'center', color: 'var(--v6-text-3)' }}>
-            No open appeals
-          </div>
-        ) : (
-          <div className="v6-risk-list">
-            {appeals.map(a => (
-              <div key={a.id} className="v6-risk-row" style={{ cursor: 'default' }}>
-                <div className="v6-risk-score-badge atrisk" style={{ fontSize: 10 }}>?</div>
-                <div className="v6-risk-row-info">
-                  <div className="v6-rn-name">{a.phone} · {a.tenant}</div>
-                  <div className="v6-rn-sub">{a.reason}</div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                  <button className="v6-btn-sm" style={{ height: 30, padding: '0 10px', fontSize: 11 }} onClick={() => handleAppeal(a.id, 'approve')}>Approve</button>
-                  <button className="v6-btn-sm v6-btn-danger-outline" style={{ height: 30, padding: '0 10px', fontSize: 11 }} onClick={() => handleAppeal(a.id, 'deny')}>Deny</button>
-                </div>
+        <div className="risk-list">
+          {APPEALS.map((a, i) => (
+            <div key={i} className="risk-row" style={{ cursor: 'default' }}>
+              <div className="risk-score-badge atrisk" style={{ fontSize: 10 }}>?</div>
+              <div className="risk-row-info">
+                <div className="rn-name">{a.phone} · {a.tenant}</div>
+                <div className="rn-sub">{a.reason}</div>
               </div>
-            ))}
-          </div>
-        )}
+              <button className="btn-sm" style={{ height: 30, padding: '0 10px', fontSize: 11 }} onClick={() => showToast('Appeal approved — risk score cleared')}>Approve</button>
+              <button className="btn-sm btn-danger-outline" style={{ height: 30, padding: '0 10px', fontSize: 11 }} onClick={() => showToast('Appeal denied — flag stands')}>Deny</button>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* FBR threshold */}
-      <div className="v6-zone">
-        <div className="v6-zone-head">
-          <span className="v6-zone-title">FBR turnover threshold</span>
-          <span className="v6-zone-sub">Stores approaching Rs 7.5M annual — may require FBR registration</span>
+      <div className="zone">
+        <div className="zone-head">
+          <span className="zone-title">FBR registration threshold</span>
+          <span className="zone-sub">Unregistered tenants approaching Rs 7.5M annual revenue — alert required by law</span>
         </div>
-        <div className="v6-card v6-track-scroll">
-          <table className="v6-compare-table">
+        <div className="card track-scroll">
+          <table className="compare-table">
             <thead>
-              <tr><th>Tenant</th><th>Projected annual revenue</th><th>Threshold</th><th>Status</th></tr>
+              <tr>
+                <th>Tenant</th>
+                <th>Annualized revenue</th>
+                <th>Threshold</th>
+                <th>Status</th>
+              </tr>
             </thead>
             <tbody>
-              {fbrTable.length === 0 ? (
-                <tr><td colSpan={4} style={{ padding: 32, textAlign: 'center', color: 'var(--v6-text-3)' }}>No unregistered tenants currently near the threshold.</td></tr>
-              ) : (
-                fbrTable.map(t => {
-                  const alertSent = t.annualRevenue > 7_000_000;
-                  return (
-                    <tr key={t.id} className="v6-tenant-row" onClick={() => router.push(`/tenants/${t.id}`)}>
-                      <td style={{ fontWeight: 700 }}>{t.name}</td>
-                      <td className="num" style={{ color: alertSent ? 'var(--v6-destructive)' : 'var(--v6-warning)', fontWeight: 700 }}>
-                        Rs {t.annualRevenue.toLocaleString('en-US')}
-                      </td>
-                      <td className="num" style={{ color: 'var(--v6-text-3)' }}>Rs {FBR_THRESHOLD.toLocaleString('en-US')}</td>
-                      <td>
-                        <span className={`v6-mini-pill ${alertSent ? 'review' : 'monitor'}`}>
-                          {alertSent ? 'Alert sent' : 'Approaching'}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+              {nearThreshold.length === 0 ? (
+                <tr><td colSpan={4} style={{ textAlign: 'center', padding: 20, color: 'var(--text-3)' }}>No unregistered tenants currently near the threshold.</td></tr>
+              ) : nearThreshold.map(t => {
+                const annualRev = t.deepDive.salesTotal * 12;
+                return (
+                  <tr key={t.id}>
+                    <td style={{ fontWeight: 700 }}>{t.name}</td>
+                    <td className="num">Rs {annualRev.toLocaleString('en-US')}</td>
+                    <td className="num">Rs 7,500,000</td>
+                    <td>
+                      <span className={`mini-pill ${annualRev > 7000000 ? 'review' : 'monitor'}`}>
+                        {annualRev > 7000000 ? 'Alert sent' : 'Approaching'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

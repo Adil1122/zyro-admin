@@ -9,7 +9,7 @@ const NAV = [
     items: [
       { href: '/', label: 'Overview' },
       { href: '/tenants', label: 'Tenants' },
-      { href: '/billing', label: 'Billing', badge: '3', badgeColor: 'red' },
+      { href: '/billing', label: 'Billing', badge: '3' },
       { href: '/discover', label: 'Discover' },
     ],
   },
@@ -41,41 +41,37 @@ export default function Sidebar({ drawerOpen, onClose }: Props) {
   }
 
   return (
-    <aside className={`v6-sidebar${drawerOpen ? ' drawer-open' : ''}`}>
-      <div className="v6-logo">
-        <span className="v6-logo-mark">Z</span>
-        <span className="v6-logo-text">Zyro</span>
-        <span className="v6-ops-badge">OPS</span>
+    <aside className={`sidebar${drawerOpen ? ' drawer-open' : ''}`}>
+      <div className="logo">
+        <span className="logo-mark">Z</span>
+        <span className="logo-text">Zyro</span>
+        <span className="ops-badge">OPS</span>
       </div>
 
-      <nav className="v6-nav">
+      <nav className="nav">
         {NAV.map(group => (
           <React.Fragment key={group.label}>
-            <div className="v6-nav-section-label">{group.label}</div>
+            <div className="nav-section-label">{group.label}</div>
             {group.items.map(item => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`v6-nav-item${isActive(item.href) ? ' active' : ''}`}
+                className={`nav-item${isActive(item.href) ? ' active' : ''}`}
                 onClick={onClose}
               >
                 {item.label}
-                {item.badge && (
-                  <span className={`v6-nav-badge${item.badgeColor ? ' ' + item.badgeColor : ''}`}>
-                    {item.badge}
-                  </span>
-                )}
+                {item.badge && <span className="badge">{item.badge}</span>}
               </Link>
             ))}
           </React.Fragment>
         ))}
       </nav>
 
-      <div className="v6-sidebar-foot">
-        <div className="v6-avatar-sm">AK</div>
+      <div className="sidebar-foot">
+        <div className="avatar-sm">AK</div>
         <div>
-          <div className="v6-sf-who">Anes Khan</div>
-          <div className="v6-sf-role">Founder · Full access</div>
+          <div className="who">Anes Khan</div>
+          <div className="role">Founder · Full access</div>
         </div>
       </div>
     </aside>
