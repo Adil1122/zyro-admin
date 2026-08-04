@@ -1,95 +1,82 @@
+'use client';
 import React from 'react';
-import { 
-  LayoutDashboard, Users, TrendingUp, BarChart3, 
-  Activity, Sparkles, FileText, LifeBuoy, 
-  Plug, ShieldCheck, Settings, ChevronsUpDown,
-  User, CreditCard, LogOut, Keyboard, ExternalLink
-} from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
-export default function Sidebar() {
+const NAV = [
+  {
+    label: 'Platform',
+    items: [
+      { href: '/', label: 'Overview' },
+      { href: '/tenants', label: 'Tenants' },
+      { href: '/billing', label: 'Billing', badge: '3', badgeColor: 'red' },
+      { href: '/discover', label: 'Discover' },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { href: '/health', label: 'Platform Health' },
+      { href: '/risk', label: 'Risk & Compliance' },
+      { href: '/flags', label: 'Feature Flags' },
+    ],
+  },
+  {
+    label: 'Governance',
+    items: [
+      { href: '/audit', label: 'Audit Log' },
+      { href: '/announcements', label: 'Announcements' },
+    ],
+  },
+];
+
+interface Props { drawerOpen: boolean; onClose: () => void; }
+
+export default function Sidebar({ drawerOpen, onClose }: Props) {
+  const pathname = usePathname();
+
+  function isActive(href: string) {
+    if (href === '/') return pathname === '/';
+    return pathname.startsWith(href);
+  }
+
   return (
-    <aside className="sidebar">
-      <div className="brand">
-        <div className="brand-mark">Z</div>
+    <aside className={`v6-sidebar${drawerOpen ? ' drawer-open' : ''}`}>
+      <div className="v6-logo">
+        <span className="v6-logo-mark">Z</span>
+        <span className="v6-logo-text">Zyro</span>
+        <span className="v6-ops-badge">OPS</span>
+      </div>
+
+      <nav className="v6-nav">
+        {NAV.map(group => (
+          <React.Fragment key={group.label}>
+            <div className="v6-nav-section-label">{group.label}</div>
+            {group.items.map(item => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`v6-nav-item${isActive(item.href) ? ' active' : ''}`}
+                onClick={onClose}
+              >
+                {item.label}
+                {item.badge && (
+                  <span className={`v6-nav-badge${item.badgeColor ? ' ' + item.badgeColor : ''}`}>
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            ))}
+          </React.Fragment>
+        ))}
+      </nav>
+
+      <div className="v6-sidebar-foot">
+        <div className="v6-avatar-sm">AK</div>
         <div>
-          <div className="brand-title">Zyro</div>
-          <div className="brand-sub">Operations</div>
+          <div className="v6-sf-who">Anes Khan</div>
+          <div className="v6-sf-role">Founder · Full access</div>
         </div>
-      </div>
-
-      <div className="nav-group">
-        <div className="nav-label">Workspace</div>
-        <Link href="/" className="nav-item">
-          <LayoutDashboard className="nav-icon" />
-          <span>Command Center</span>
-          <span className="nav-badge red">3</span>
-        </Link>
-      </div>
-
-      <div className="nav-group">
-        <div className="nav-label">Business</div>
-        <Link href="/merchants" className="nav-item">
-          <Users className="nav-icon" />
-          <span>Merchants</span>
-          <span className="nav-badge">847</span>
-        </Link>
-        <Link href="/financials" className="nav-item">
-          <TrendingUp className="nav-icon" />
-          <span>Financials</span>
-        </Link>
-        <Link href="/intel" className="nav-item">
-          <BarChart3 className="nav-icon" />
-          <span>Intelligence</span>
-        </Link>
-      </div>
-
-      <div className="nav-group">
-        <div className="nav-label">Operations</div>
-        <Link href="/operations" className="nav-item">
-          <Activity className="nav-icon" />
-          <span>System</span>
-          <span className="nav-badge yellow">1</span>
-        </Link>
-        <Link href="/ai" className="nav-item">
-          <Sparkles className="nav-icon" />
-          <span>AI Engine</span>
-        </Link>
-        <Link href="/templates" className="nav-item">
-          <FileText className="nav-icon" />
-          <span>Templates</span>
-        </Link>
-        <Link href="/support" className="nav-item">
-          <LifeBuoy className="nav-icon" />
-          <span>Tools</span>
-        </Link>
-      </div>
-
-      <div className="nav-group">
-        <div className="nav-label">Configuration</div>
-        <Link href="/integrations" className="nav-item">
-          <Plug className="nav-icon" />
-          <span>Integrations</span>
-        </Link>
-        <Link href="/audit" className="nav-item">
-          <ShieldCheck className="nav-icon" />
-          <span>Audit log</span>
-        </Link>
-        <Link href="/settings" className="nav-item">
-          <Settings className="nav-icon" />
-          <span>Settings</span>
-        </Link>
-      </div>
-
-      <div className="sidebar-footer" style={{ position: 'relative' }}>
-        <div className="sidebar-footer-avatar">AK</div>
-        <div className="sidebar-footer-info">
-          <div className="sidebar-footer-name">Ahmad Khan</div>
-          <div className="sidebar-footer-meta">Founder · admin</div>
-        </div>
-        <button className="btn btn-icon btn-sm btn-ghost" title="Account menu">
-          <ChevronsUpDown style={{ width: '14px' }} />
-        </button>
       </div>
     </aside>
   );

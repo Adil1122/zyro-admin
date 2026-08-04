@@ -1,38 +1,29 @@
+'use client';
 import React from 'react';
-import { Menu, ChevronRight, Search, Bell, CheckCheck, AlertCircle, Truck, CreditCard, UserPlus, CheckCircle } from 'lucide-react';
+import { useApp } from '@/lib/context';
 
-export default function Topbar({ pageTitle = "Command Center" }) {
+interface Props { onHamburger: () => void; onCmdK: () => void; }
+
+export default function Topbar({ onHamburger, onCmdK }: Props) {
+  const { logout } = useApp();
   return (
-    <header className="topbar">
-      <div className="topbar-left">
-        <button className="hamburger" aria-label="Open menu">
-          <Menu style={{ width: '16px' }} />
-        </button>
-        <nav className="breadcrumb">
-          <span>Zyro</span>
-          <ChevronRight style={{ width: '12px', color: 'var(--tx-4)' }} />
-          <span className="breadcrumb-current" id="breadcrumbCurrent">{pageTitle}</span>
-        </nav>
-      </div>
-
-      <div className="topbar-spacer"></div>
-
-      <div className="topbar-right">
-        <span className="topbar-meta">FRI 06 JUN · 07:24 PKT</span>
-        
-        <button className="search-trigger">
-          <Search style={{ width: '14px' }} />
-          <span>Search merchants, actions, anything...</span>
-          <span className="kbd">⌘K</span>
-        </button>
-        
-        <div className="dropdown-wrap" id="notifDropdownWrap">
-          <button className="btn btn-icon btn-sm btn-ghost" style={{ position: 'relative' }} title="Notifications">
-            <Bell style={{ width: '14px' }} />
-            <span className="bell-dot"></span>
-          </button>
-        </div>
-      </div>
+    <header className="v6-topbar">
+      <button className="v6-hamburger" onClick={onHamburger} aria-label="Open menu">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+          <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+        </svg>
+      </button>
+      <div className="v6-env-pill"><span className="v6-env-dot" />Production</div>
+      <button className="v6-topbar-search" onClick={onCmdK}>
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+          <circle cx="7" cy="7" r="5.2" stroke="currentColor" strokeWidth="1.6"/>
+        </svg>
+        <span style={{ color: 'var(--v6-text-3)', flex: 1, textAlign: 'left' }}>
+          Search tenants, or jump anywhere…
+        </span>
+        <span className="v6-cmdk-hint">⌘K</span>
+      </button>
+      <button className="v6-signout-btn" onClick={logout}>Sign out</button>
     </header>
   );
 }
