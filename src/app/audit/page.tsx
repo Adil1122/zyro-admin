@@ -5,17 +5,10 @@ import { FULL_AUDIT_LOG } from '@/lib/data';
 const TYPE_CHIPS = [
   { key: 'all', label: 'All' },
   { key: 'impersonation', label: 'Impersonation' },
-  { key: 'pii', label: 'PII access' },
+  { key: 'pii', label: 'PII unmask' },
   { key: 'billing', label: 'Billing' },
-  { key: 'account', label: 'Account' },
+  { key: 'account', label: 'Account changes' },
 ];
-
-const AUDIT_ICON: Record<string, string> = {
-  impersonation: '👁',
-  pii: '🔒',
-  billing: '💳',
-  account: '🚩',
-};
 
 export default function AuditPage() {
   const [search, setSearch] = useState('');
@@ -27,7 +20,7 @@ export default function AuditPage() {
       const q = search.toLowerCase();
       const matchSearch = !q || a.admin.toLowerCase().includes(q) || a.tenant.toLowerCase().includes(q) || a.action.toLowerCase().includes(q);
       return matchType && matchSearch;
-    });
+    }).slice(0, 50);
   }, [search, typeFilter]);
 
   return (
@@ -59,31 +52,45 @@ export default function AuditPage() {
             </button>
           ))}
         </div>
-        <div className="v6-tenant-meta" style={{ marginBottom: 8 }}>
-          {filtered.length === FULL_AUDIT_LOG.length
-            ? `${FULL_AUDIT_LOG.length} entries`
-            : `${filtered.length} of ${FULL_AUDIT_LOG.length} entries`}
+        <div className="v6-tenant-meta" style={{ marginBottom: 10 }}>
+          {filtered.length === Math.min(FULL_AUDIT_LOG.length, 50)
+            ? `${filtered.length} entries`
+            : `${filtered.length} of ${FULL_AUDIT_LOG.length} matching`}
         </div>
 
-        <div className="v6-card" style={{ padding: '6px 0' }}>
+        <div className="v6-card v6-track-scroll">
           {filtered.length === 0 ? (
             <p style={{ padding: 32, textAlign: 'center', color: 'var(--v6-text-3)' }}>No entries match this filter</p>
           ) : (
-            filtered.map((a, i) => (
-              <div key={i} className="v6-audit-row v6-audit-row-full">
-                <span className="v6-audit-ic">{AUDIT_ICON[a.type] ?? '•'}</span>
-                <div className="v6-audit-body">
-                  <div className="v6-audit-text">
-                    <strong>{a.admin}</strong> <span style={{ color: 'var(--v6-text-3)' }}>→</span> {a.action} — <strong>{a.tenant}</strong>
-                  </div>
-                  {a.reason && <div className="v6-audit-reason">"{a.reason}"</div>}
-                </div>
-                <div className="v6-audit-right">
-                  <span className={`v6-audit-type-chip ${a.type}`}>{TYPE_CHIPS.find(c => c.key === a.type)?.label ?? a.type}</span>
-                  <span className="v6-audit-time">{a.time}</span>
-                </div>
-              </div>
-            ))
+            <table className="v6-compare-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Admin</th>
+                  <th>Action</th>
+                  <th>Tenant</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((a, i) => (
+                  <tr key={i}>
+                    <td style={{ color: 'var(--v6-text-3)', whiteSpace: 'nowrap', fontSize: 12 }}>{a.time}</td>
+                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{a.admin}</td>
+                    <td>
+                      <span className={`v6-audit-type-chip ${a.type}`} style={{ marginRight: 8 }}>
+                        {TYPE_CHIPS.find(c => c.key === a.type)?.label ?? a.type}
+                      </span>
+                      {a.action}
+                    </td>
+                    <td style={{ color: 'var(--v6-text-2)' }}>{a.tenant || '—'}</td>
+                    <td style={{ color: 'var(--v6-text-3)', fontStyle: a.reason ? 'italic' : 'normal', fontSize: 12 }}>
+                      {a.reason || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       </div>

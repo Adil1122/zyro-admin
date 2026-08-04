@@ -7,6 +7,12 @@ import { useApp } from '@/lib/context';
 type Audience = 'All tenants' | 'At-risk tenants' | 'Pro plan only';
 const AUDIENCES: Audience[] = ['All tenants', 'At-risk tenants', 'Pro plan only'];
 
+const AUD_ICON: Record<string, string> = {
+  'All tenants': '📢',
+  'At-risk tenants': '⚠️',
+  'Pro plan only': '⭐',
+};
+
 export default function AnnouncementsPage() {
   const { showToast } = useApp();
   const [title, setTitle] = useState('');
@@ -21,18 +27,19 @@ export default function AnnouncementsPage() {
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
     const timeStr = `${now.getDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][now.getMonth()]} · ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const sentTo = audience === 'All tenants' ? 742 : audience === 'Pro plan only' ? 183 : 47;
     const entry: Announcement = {
       id: `ann-${Date.now()}`,
       title: title.trim(),
       message: message.trim(),
       audience,
       publishedAt: timeStr,
-      sentTo: audience === 'All tenants' ? 742 : audience === 'Pro plan only' ? 183 : 47,
+      sentTo,
     };
     setHistory(prev => [entry, ...prev]);
     setTitle('');
     setMessage('');
-    showToast(`Announcement sent to ${entry.sentTo} tenants`);
+    showToast(`Announcement sent to ${sentTo} tenants`);
   }
 
   return (
@@ -70,7 +77,7 @@ export default function AnnouncementsPage() {
               </div>
               <div style={{ marginTop: 14 }}>
                 <label style={{ fontSize: 12, color: 'var(--v6-text-3)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8, display: 'block' }}>Audience</label>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {AUDIENCES.map(a => (
                     <button
                       key={a}
@@ -96,7 +103,7 @@ export default function AnnouncementsPage() {
           </div>
         </div>
 
-        {/* History */}
+        {/* History — audit-feed style */}
         <div>
           <div className="v6-zone">
             <div className="v6-zone-head"><span className="v6-zone-title">History</span><span className="v6-zone-sub">{history.length} sent</span></div>
@@ -105,17 +112,18 @@ export default function AnnouncementsPage() {
                 No announcements yet
               </div>
             ) : (
-              history.map(ann => (
-                <div key={ann.id} className="v6-card" style={{ padding: '14px 18px', marginBottom: 10 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{ann.title}</div>
-                  <div style={{ color: 'var(--v6-text-2)', fontSize: 13, lineHeight: 1.5, marginBottom: 8 }}>{ann.message}</div>
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', fontSize: 12 }}>
-                    <span style={{ color: 'var(--v6-text-3)' }}>{ann.publishedAt}</span>
-                    <span className="v6-filter-chip" style={{ pointerEvents: 'none', padding: '2px 8px' }}>{ann.audience}</span>
-                    <span style={{ color: 'var(--v6-accent-light)', fontWeight: 600 }}>{ann.sentTo} tenants</span>
+              <div className="v6-audit-feed">
+                {history.map(ann => (
+                  <div key={ann.id} className="v6-audit-row">
+                    <span className="v6-audit-ic">{AUD_ICON[ann.audience] ?? '📢'}</span>
+                    <div className="v6-audit-text" style={{ flex: 1 }}>
+                      <strong>{ann.title}</strong>
+                      <span style={{ color: 'var(--v6-text-3)' }}> · {ann.audience} · {ann.sentTo} tenants</span>
+                    </div>
+                    <span className="v6-audit-time">{ann.publishedAt}</span>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>

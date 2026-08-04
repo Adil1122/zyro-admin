@@ -4,43 +4,46 @@ import { TENANTS } from '@/lib/data';
 
 export default function DiscoverPage() {
   const { products, objectives } = useMemo(() => {
-    // Aggregate products across all tenants
-    const prodMap = new Map<string, { name: string; totalRevenue: number; totalUnits: number; count: number }>();
+    // Aggregate products across all tenants — sort by units sold
+    const prodMap = new Map<string, { name: string; totalUnits: number; storeCount: number }>();
     for (const t of TENANTS) {
       for (const p of t.deepDive.products) {
-        const key = p.name;
-        if (!prodMap.has(key)) prodMap.set(key, { name: p.name, totalRevenue: 0, totalUnits: 0, count: 0 });
-        const e = prodMap.get(key)!;
-        e.totalRevenue += p.revenue;
+        if (!prodMap.has(p.name)) prodMap.set(p.name, { name: p.name, totalUnits: 0, storeCount: 0 });
+        const e = prodMap.get(p.name)!;
         e.totalUnits += p.unitsSold;
-        e.count += 1;
+        e.storeCount += 1;
       }
     }
     const products = [...prodMap.values()]
-      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .sort((a, b) => b.totalUnits - a.totalUnits)
       .slice(0, 12);
 
-    // Aggregate campaign objectives by ROAS
-    const objMap = new Map<string, { name: string; totalRoas: number; count: number }>();
-    const objNames = ['Traffic', 'Conversions', 'Catalog', 'Reach', 'Engagement', 'Lead gen'];
+    // Aggregate campaign objectives — extract from campaign name via split(' — ')[0]
+    const objMap = new Map<string, { name: string; totalRoas: number; campaignCount: number; totalSpend: number; tenantSet: Set<string> }>();
     for (const t of TENANTS) {
       for (const c of t.deepDive.campaigns) {
-        const obj = objNames[c.name.length % objNames.length];
-        if (!objMap.has(obj)) objMap.set(obj, { name: obj, totalRoas: 0, count: 0 });
+        const obj = c.name.split(' — ')[0] || c.name;
+        if (!objMap.has(obj)) objMap.set(obj, { name: obj, totalRoas: 0, campaignCount: 0, totalSpend: 0, tenantSet: new Set() });
         const e = objMap.get(obj)!;
         e.totalRoas += c.roas;
-        e.count += 1;
+        e.campaignCount += 1;
+        e.totalSpend += c.spend;
+        e.tenantSet.add(t.id);
       }
     }
     const objectives = [...objMap.values()]
-      .map(o => ({ ...o, avgRoas: o.count > 0 ? +(o.totalRoas / o.count).toFixed(1) : 0 }))
+      .map(o => ({
+        name: o.name,
+        avgRoas: o.campaignCount > 0 ? +(o.totalRoas / o.campaignCount).toFixed(1) : 0,
+        tenantsCount: o.tenantSet.size,
+        totalSpend: o.totalSpend,
+      }))
       .sort((a, b) => b.avgRoas - a.avgRoas);
 
     return { products, objectives };
   }, []);
 
-  const maxRevenue = products[0]?.totalRevenue ?? 1;
-  const maxRoas = objectives[0]?.avgRoas ?? 1;
+  const maxUnits = products[0]?.totalUnits ?? 1;
 
   return (
     <div>
@@ -52,7 +55,7 @@ export default function DiscoverPage() {
       <div className="v6-zone">
         <div className="v6-zone-head">
           <span className="v6-zone-title">Trending products</span>
-          <span className="v6-zone-sub">By aggregate revenue across all stores (last 30 days)</span>
+          <span className="v6-zone-sub">By units sold across all stores (last 30 days)</span>
         </div>
         <div className="v6-card" style={{ padding: '16px 20px' }}>
           {products.map((p, i) => (
@@ -60,14 +63,14 @@ export default function DiscoverPage() {
               <span className="v6-product-rank">{i + 1}</span>
               <div className="v6-product-info">
                 <div className="v6-p-name">{p.name}</div>
-                <div className="v6-p-sub">{p.totalUnits.toLocaleString('en-US')} units · {p.count} stores</div>
+                <div className="v6-p-sub">{p.storeCount} stores</div>
               </div>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div className="v6-compare-bar-track" style={{ flex: 1 }}>
-                  <span className="v6-compare-bar-fill" style={{ width: `${(p.totalRevenue / maxRevenue * 100).toFixed(0)}%`, background: 'var(--v6-accent)' }} />
+                  <span className="v6-compare-bar-fill" style={{ width: `${(p.totalUnits / maxUnits * 100).toFixed(0)}%`, background: 'var(--v6-accent)' }} />
                 </div>
-                <span className="v6-product-revenue num" style={{ minWidth: 100, textAlign: 'right' }}>
-                  Rs {p.totalRevenue.toLocaleString('en-US')}
+                <span className="v6-product-revenue num" style={{ minWidth: 90, textAlign: 'right' }}>
+                  {p.totalUnits.toLocaleString('en-US')} units
                 </span>
               </div>
             </div>
@@ -77,25 +80,32 @@ export default function DiscoverPage() {
 
       <div className="v6-zone">
         <div className="v6-zone-head">
-          <span className="v6-zone-title">Winning ad objectives by ROAS</span>
-          <span className="v6-zone-sub">Average across all stores running that objective type</span>
+          <span className="v6-zone-title">Winning ad objectives</span>
+          <span className="v6-zone-sub">By average ROAS across all stores running that objective</span>
         </div>
-        <div className="v6-card" style={{ padding: '16px 20px' }}>
-          {objectives.map(obj => (
-            <div key={obj.name} className="v6-wa-template-row">
-              <span style={{ width: 130, flexShrink: 0 }}>{obj.name}</span>
-              <div className="v6-compare-bar-track" style={{ flex: 1 }}>
-                <span className="v6-compare-bar-fill" style={{
-                  width: `${(obj.avgRoas / maxRoas * 100).toFixed(0)}%`,
-                  background: obj.avgRoas >= 4 ? 'var(--v6-accent)' : obj.avgRoas >= 2.5 ? 'var(--v6-meta-blue)' : 'var(--v6-warning)',
-                }} />
-              </div>
-              <span className="v6-wt-count num" style={{ minWidth: 60, textAlign: 'right' }}>
-                <b style={{ color: 'var(--v6-accent-light)' }}>{obj.avgRoas}x</b>
-                <span style={{ color: 'var(--v6-text-3)', fontWeight: 400, marginLeft: 6 }}>({obj.count} camps)</span>
-              </span>
-            </div>
-          ))}
+        <div className="v6-card v6-track-scroll">
+          <table className="v6-compare-table">
+            <thead>
+              <tr>
+                <th>Objective</th>
+                <th>Tenants running it</th>
+                <th>Avg ROAS</th>
+                <th>Total spend</th>
+              </tr>
+            </thead>
+            <tbody>
+              {objectives.map(obj => (
+                <tr key={obj.name}>
+                  <td style={{ fontWeight: 600 }}>{obj.name}</td>
+                  <td className="num">{obj.tenantsCount}</td>
+                  <td className="num" style={{ color: obj.avgRoas >= 4 ? 'var(--v6-accent-light)' : obj.avgRoas >= 2.5 ? 'var(--v6-text-1)' : 'var(--v6-warning)', fontWeight: 700 }}>
+                    {obj.avgRoas}x
+                  </td>
+                  <td className="num" style={{ color: 'var(--v6-text-2)' }}>Rs {obj.totalSpend.toLocaleString('en-US')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

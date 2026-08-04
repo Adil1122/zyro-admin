@@ -13,13 +13,15 @@ export default function HealthPage() {
   const router = useRouter();
   const [tab, setTab] = useState<'couriers' | 'whatsapp' | 'queues'>('couriers');
 
-  // Tenants whose opt-in rate is < 30% (WhatsApp watch list)
+  // WA watch list: health < 65 AND messagesSent > 400
   const waWatchList = TENANTS
-    .filter(t => t.deepDive.messagesSent > 0 && t.deepDive.optInRate < 30)
-    .sort((a, b) => a.deepDive.optInRate - b.deepDive.optInRate)
-    .slice(0, 8);
+    .filter(t => t.health < 65 && t.deepDive.messagesSent > 400)
+    .map(t => ({ ...t, qualityScore: Math.max(20, Math.min(65, t.health - 15)) }))
+    .sort((a, b) => a.qualityScore - b.qualityScore)
+    .slice(0, 10);
 
   const operationalCount = COURIER_HEALTH.filter(c => c.status === 'operational').length;
+  const stalledCount = JOB_QUEUES.filter(q => q.status === 'stalled').length;
 
   return (
     <div>
@@ -28,10 +30,10 @@ export default function HealthPage() {
         <div className="v6-page-sub">API integrations, message quality, and job queues</div>
       </div>
 
-      <div className="v6-mini-metric-grid" style={{ marginBottom: 20 }}>
+      <div className="v6-mini-metric-grid" style={{ marginBottom: 24 }}>
         <div className="v6-mini-metric"><label>Courier APIs operational</label><b className="num" style={{ color: operationalCount === COURIER_HEALTH.length ? 'var(--v6-accent-light)' : 'var(--v6-warning)' }}>{operationalCount}/{COURIER_HEALTH.length}</b></div>
         <div className="v6-mini-metric"><label>WA watch list</label><b className="num" style={{ color: waWatchList.length > 0 ? 'var(--v6-warning)' : 'var(--v6-accent-light)' }}>{waWatchList.length}</b></div>
-        <div className="v6-mini-metric"><label>Stalled queues</label><b className="num" style={{ color: JOB_QUEUES.filter(q => q.status === 'stalled').length > 0 ? 'var(--v6-destructive)' : 'var(--v6-accent-light)' }}>{JOB_QUEUES.filter(q => q.status === 'stalled').length}</b></div>
+        <div className="v6-mini-metric"><label>Stalled queues</label><b className="num" style={{ color: stalledCount > 0 ? 'var(--v6-destructive)' : 'var(--v6-accent-light)' }}>{stalledCount}</b></div>
         <div className="v6-mini-metric"><label>Jobs processing</label><b className="num">{JOB_QUEUES.reduce((s, q) => s + q.processing, 0).toLocaleString('en-US')}</b></div>
       </div>
 
@@ -77,15 +79,15 @@ export default function HealthPage() {
         <div className="v6-zone">
           <div className="v6-zone-head">
             <span className="v6-zone-title">WhatsApp quality watch list</span>
-            <span className="v6-zone-sub">Stores with opt-in rate below 30% — at risk of Meta account review</span>
+            <span className="v6-zone-sub">Stores with health &lt;65 and &gt;400 messages sent — at risk of Meta review</span>
           </div>
           <div className="v6-card v6-track-scroll">
             {waWatchList.length === 0 ? (
-              <p style={{ padding: 32, textAlign: 'center', color: 'var(--v6-text-3)' }}>All active stores are above the 30% opt-in threshold.</p>
+              <p style={{ padding: 32, textAlign: 'center', color: 'var(--v6-text-3)' }}>No stores currently in the watch list.</p>
             ) : (
               <table className="v6-tenant-table">
                 <thead>
-                  <tr><th>Tenant</th><th>Opt-in rate</th><th>Messages sent (30d)</th><th>AI cost (30d)</th></tr>
+                  <tr><th>Tenant</th><th>Quality score</th><th>Messages sent (30d)</th><th>AI cost (30d)</th></tr>
                 </thead>
                 <tbody>
                   {waWatchList.map(t => (
@@ -94,7 +96,7 @@ export default function HealthPage() {
                         <div className="v6-t-name">{t.name}</div>
                         <div className="v6-t-sub">{t.owner}</div>
                       </td>
-                      <td className="num" style={{ color: 'var(--v6-destructive)', fontWeight: 700 }}>{t.deepDive.optInRate}%</td>
+                      <td className="num" style={{ color: 'var(--v6-destructive)', fontWeight: 700 }}>{t.qualityScore}</td>
                       <td className="num">{t.deepDive.messagesSent.toLocaleString('en-US')}</td>
                       <td className="num">Rs {t.deepDive.aiCost.toLocaleString('en-US')}</td>
                     </tr>
@@ -109,18 +111,29 @@ export default function HealthPage() {
       {tab === 'queues' && (
         <div className="v6-zone">
           <div className="v6-zone-head"><span className="v6-zone-title">Job queues</span></div>
-          <div className="v6-card" style={{ padding: '16px 20px' }}>
-            {JOB_QUEUES.map(q => (
-              <div key={q.name} className="v6-product-row">
-                <div className="v6-product-info">
-                  <div className="v6-p-name">{q.name}</div>
-                  <div className="v6-p-sub">{q.processing} processing · {q.pending} pending · {q.failed} failed</div>
-                </div>
-                <span className={`v6-mini-pill ${q.status === 'healthy' ? 'scale' : q.status === 'stalled' ? 'review' : 'monitor'}`} style={{ textTransform: 'capitalize' }}>
-                  {q.status}
-                </span>
-              </div>
-            ))}
+          <div className="v6-card v6-track-scroll">
+            <table className="v6-compare-table">
+              <thead>
+                <tr>
+                  <th>Queue</th>
+                  <th>Depth (pending)</th>
+                  <th>Processing rate</th>
+                  <th>Failed (24h)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {JOB_QUEUES.map(q => (
+                  <tr key={q.name}>
+                    <td style={{ fontFamily: 'monospace', fontSize: 11.5, fontWeight: 700 }}>{q.name}</td>
+                    <td className="num">{q.pending.toLocaleString('en-US')}</td>
+                    <td className="num">{q.processing.toLocaleString('en-US')}/min</td>
+                    <td className="num" style={{ color: q.failed > 0 ? 'var(--v6-warning)' : 'var(--v6-text-3)' }}>
+                      {q.failed > 0 ? q.failed : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
