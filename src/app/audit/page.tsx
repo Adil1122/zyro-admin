@@ -5,9 +5,9 @@ import { FULL_AUDIT_LOG } from '@/lib/data';
 const TYPE_CHIPS = [
   { label: 'All', value: 'all' },
   { label: 'Impersonation', value: 'impersonation' },
-  { label: 'PII access', value: 'pii' },
   { label: 'Billing', value: 'billing' },
-  { label: 'Account', value: 'account' },
+  { label: 'PII unmask', value: 'pii' },
+  { label: 'Account changes', value: 'account' },
 ];
 
 export default function AuditPage() {
@@ -27,7 +27,7 @@ export default function AuditPage() {
     <div className="page-anim">
       <div className="page-head">
         <h1>Audit Log</h1>
-        <div className="page-sub">Every admin action, immutably recorded — 90-day retention</div>
+        <div className="page-sub">Every admin action — append-only, never edited or deleted</div>
       </div>
 
       <div className="zone">
@@ -58,7 +58,7 @@ export default function AuditPage() {
         </div>
 
         <div className="card track-scroll">
-          <table className="tenant-table">
+          <table className="compare-table">
             <thead>
               <tr>
                 <th>Time</th>

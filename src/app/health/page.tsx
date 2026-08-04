@@ -43,13 +43,13 @@ export default function HealthPage() {
     <div className="page-anim">
       <div className="page-head">
         <h1>Platform Health</h1>
-        <div className="page-sub">Courier API status, WhatsApp quality signals, and job queue depths</div>
+        <div className="page-sub">Shared infrastructure — affects every tenant using it, not just one</div>
       </div>
 
       <div className="zone">
         <div className="zone-head">
-          <span className="zone-title">Courier API health</span>
-          <span className="zone-sub">Live success rate and latency from our booking integrations</span>
+          <span className="zone-title">Courier API status</span>
+          <span className="zone-sub">Live, all 14 integrations</span>
         </div>
         <div className="card track-scroll">
           <table className="compare-table">
@@ -57,8 +57,8 @@ export default function HealthPage() {
               <tr>
                 <th>Courier</th>
                 <th>Status</th>
-                <th>Success rate</th>
-                <th>Latency</th>
+                <th>Success rate (1h)</th>
+                <th>Avg latency</th>
                 <th>Affected tenants</th>
               </tr>
             </thead>
@@ -79,8 +79,8 @@ export default function HealthPage() {
 
       <div className="zone">
         <div className="zone-head">
-          <span className="zone-title">WhatsApp number quality watch-list</span>
-          <span className="zone-sub">Tenants with dropping quality scores and high message volume</span>
+          <span className="zone-title">WhatsApp number quality — at risk</span>
+          <span className="zone-sub">Approaching Meta suspension risk, before it happens</span>
         </div>
         <div className="risk-list">
           {atRiskWa.length === 0 ? (
@@ -108,8 +108,8 @@ export default function HealthPage() {
 
       <div className="zone">
         <div className="zone-head">
-          <span className="zone-title">Job queue depths</span>
-          <span className="zone-sub">Processing rate and failed jobs by queue</span>
+          <span className="zone-title">Background job queues</span>
+          <span className="zone-sub">Order processing, notifications, sync jobs</span>
         </div>
         <div className="card track-scroll">
           <table className="compare-table">
@@ -117,8 +117,8 @@ export default function HealthPage() {
               <tr>
                 <th>Queue</th>
                 <th>Depth</th>
-                <th>Rate</th>
-                <th>Failed</th>
+                <th>Processing rate</th>
+                <th>Failed (24h)</th>
               </tr>
             </thead>
             <tbody>

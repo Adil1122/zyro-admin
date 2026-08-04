@@ -27,15 +27,15 @@ export default function DiscoverPage() {
     <div className="page-anim">
       <div className="page-head">
         <h1>Discover</h1>
-        <div className="page-sub">Cross-tenant intelligence — what&apos;s working across the platform</div>
+        <div className="page-sub">Patterns across every store on Zyro — no single merchant can see this, only the platform can</div>
       </div>
 
       <div className="zone">
         <div className="zone-head">
-          <span className="zone-title">Trending products</span>
-          <span className="zone-sub">By total units sold across all stores</span>
+          <span className="zone-title">Trending products right now</span>
+          <span className="zone-sub">Aggregated units sold, all tenants, last 30 days</span>
         </div>
-        <div className="card" style={{ padding: '16px 20px' }}>
+        <div className="card" style={{ padding: '14px 20px' }}>
           {topProducts.map(([name, units], i) => (
             <div key={name} className="product-row">
               <span className="product-rank">{i + 1}</span>
@@ -51,16 +51,16 @@ export default function DiscoverPage() {
 
       <div className="zone">
         <div className="zone-head">
-          <span className="zone-title">Winning ad objectives</span>
-          <span className="zone-sub">Ranked by average ROAS across all campaigns</span>
+          <span className="zone-title">Winning ad approaches</span>
+          <span className="zone-sub">Which campaign objectives are actually converting platform-wide</span>
         </div>
         <div className="card track-scroll">
           <table className="compare-table">
             <thead>
               <tr>
                 <th>Objective</th>
-                <th>Campaigns</th>
-                <th>Avg ROAS</th>
+                <th>Tenants running it</th>
+                <th>Avg. ROAS</th>
                 <th>Total spend</th>
               </tr>
             </thead>

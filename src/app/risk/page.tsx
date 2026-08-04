@@ -21,13 +21,22 @@ export default function RiskPage() {
     <div className="page-anim">
       <div className="page-head">
         <h1>Risk &amp; Compliance</h1>
-        <div className="page-sub">COD fraud appeals and FBR registration thresholds</div>
+        <div className="page-sub">Cross-tenant data — exists at the platform level, not visible to any single merchant</div>
+      </div>
+
+      <div className="zone">
+        <div className="mini-metric-grid" style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>
+          <div className="mini-metric"><label>RTO intel opt-in rate</label><b className="num">78%</b><span className="note">Of tenants</span></div>
+          <div className="mini-metric"><label>Pending appeals</label><b className="num" style={{ color: 'var(--warning)' }}>3</b></div>
+          <div className="mini-metric"><label>Blocklisted numbers</label><b className="num">142</b></div>
+          <div className="mini-metric"><label>Unregistered (no NTN)</label><b className="num">18</b><span className="note">Below FBR threshold</span></div>
+        </div>
       </div>
 
       <div className="zone">
         <div className="zone-head">
-          <span className="zone-title">COD fraud appeals</span>
-          <span className="zone-sub">Merchants contesting an automated fraud flag</span>
+          <span className="zone-title">Fake-return appeal queue</span>
+          <span className="zone-sub">A wrongly blocked genuine customer is real harm — these need review, not auto-resolution</span>
         </div>
         <div className="risk-list">
           {APPEALS.map((a, i) => (
@@ -46,15 +55,15 @@ export default function RiskPage() {
 
       <div className="zone">
         <div className="zone-head">
-          <span className="zone-title">FBR registration threshold</span>
-          <span className="zone-sub">Unregistered tenants approaching Rs 7.5M annual revenue — alert required by law</span>
+          <span className="zone-title">FBR compliance — approaching revenue threshold</span>
+          <span className="zone-sub">Unregistered tenants nearing the Rs 7.5M mandatory-registration line</span>
         </div>
         <div className="card track-scroll">
           <table className="compare-table">
             <thead>
               <tr>
                 <th>Tenant</th>
-                <th>Annualized revenue</th>
+                <th>12-month revenue</th>
                 <th>Threshold</th>
                 <th>Status</th>
               </tr>

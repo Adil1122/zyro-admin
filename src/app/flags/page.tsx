@@ -43,7 +43,7 @@ export default function FlagsPage() {
     <div className="page-anim">
       <div className="page-head">
         <h1>Feature Flags</h1>
-        <div className="page-sub">Kill switches and rollout controls — changes take effect immediately</div>
+        <div className="page-sub">Kill switches for emergencies, gradual rollout for everything else — different risk profiles, different controls</div>
       </div>
 
       <div className="zone">
@@ -80,7 +80,7 @@ export default function FlagsPage() {
           <span className="zone-title">Rollout flags</span>
           <span className="zone-sub">Gradual percentage rollout, never 0% to 100% in one step</span>
         </div>
-        <div className="card">
+        <div className="card" style={{ padding: 4 }}>
           {FEATURE_FLAGS.map((f, i) => (
             <div
               key={f.name}

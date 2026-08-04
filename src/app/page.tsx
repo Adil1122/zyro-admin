@@ -22,7 +22,7 @@ export default function OverviewPage() {
           <div className="metric"><label>Active tenants</label><b className="num">742</b><div className="trend up">↑ 4.2% this month</div></div>
           <div className="metric"><label>MRR</label><b className="num">Rs 5.81M</b><div className="trend up">↑ 6.8% this month</div></div>
           <div className="metric"><label>Trial → paid</label><b className="num">31%</b><div className="trend down">↓ 2pt this month</div></div>
-          <div className="metric"><label>AI spend today</label><b className="num">Rs 8,240</b><div className="trend" style={{ color: 'var(--text-3)' }}>of Rs 15,000 budget</div></div>
+          <div className="metric"><label>AI spend today</label><b className="num">Rs 8,240</b><div className="trend up">of Rs 15,000 budget</div></div>
           <div className="metric"><label>Courier health</label><b className="num" style={{ color: 'var(--accent-light)' }}>13/14</b><div className="trend down">Leopards degraded</div></div>
         </div>
       </div>

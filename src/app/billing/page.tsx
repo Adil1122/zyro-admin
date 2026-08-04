@@ -10,23 +10,22 @@ export default function BillingPage() {
     <div className="page-anim">
       <div className="page-head">
         <h1>Billing</h1>
-        <div className="page-sub">Revenue health, dunning management, and subscription status</div>
+        <div className="page-sub">Revenue operations and the dunning queue</div>
       </div>
 
       <div className="zone">
-        <div className="metric-grid">
-          <div className="metric"><label>MRR</label><b className="num">Rs 5.81M</b><div className="trend up">↑ 6.8% this month</div></div>
-          <div className="metric"><label>ARR</label><b className="num">Rs 69.7M</b><div className="trend up">↑ 6.8% this month</div></div>
-          <div className="metric"><label>Churn rate</label><b className="num">2.1%</b><div className="trend down">↑ 0.3pt this month</div></div>
-          <div className="metric"><label>Trial → paid</label><b className="num">31%</b><div className="trend down">↓ 2pt this month</div></div>
-          <div className="metric"><label>Past due</label><b className="num" style={{ color: 'var(--warning)' }}>{dunning.length}</b><div className="trend down">accounts at risk</div></div>
+        <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>
+          <div className="metric"><label>MRR</label><b className="num">Rs 5.81M</b></div>
+          <div className="metric"><label>Churn (logo)</label><b className="num">2.1%</b></div>
+          <div className="metric"><label>In dunning</label><b className="num" style={{ color: 'var(--warning)' }}>3 tenants</b></div>
+          <div className="metric"><label>Past-due amount</label><b className="num">Rs 38,997</b></div>
         </div>
       </div>
 
       <div className="zone">
         <div className="zone-head">
           <span className="zone-title">Dunning queue</span>
-          <span className="zone-sub">Accounts with failed payments — automated retry in progress</span>
+          <span className="zone-sub">7-day recovery window before suspension</span>
         </div>
         {dunning.length === 0 ? (
           <div className="card" style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>

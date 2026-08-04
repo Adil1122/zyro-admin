@@ -15,6 +15,12 @@ const HEALTH_COLORS: Record<string, string> = {
   atrisk: 'var(--warning)', critical: 'var(--destructive)',
 };
 
+const PLAN_LIMITS: Record<string, { orders: number; wa: number; ai: number }> = {
+  Starter: { orders: 500, wa: 2000, ai: 500 },
+  Growth:  { orders: 1500, wa: 5000, ai: 1000 },
+  Pro:     { orders: 5000, wa: 20000, ai: 5000 },
+};
+
 export default function TenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { openReasonModal, openMfaStepUp, startImpersonation, showToast } = useApp();
@@ -29,6 +35,14 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
   const maxWa = Math.max(...d.waTemplates.map(w => w.count), 1);
   const maxShip = Math.max(...d.courierPerf.map(c => c.shipments), 1);
   const aov = d.orders30d > 0 ? Math.round(d.salesTotal / d.orders30d) : 0;
+
+  const limits = PLAN_LIMITS[t.plan] ?? PLAN_LIMITS['Growth'];
+  const ordersUsed = Math.min(d.orders30d, limits.orders);
+  const waUsed = Math.min(d.messagesSent, limits.wa);
+  const aiUsed = Math.min(Math.round(d.aiCost / 15), limits.ai);
+  const ordersPct = Math.round((ordersUsed / limits.orders) * 100);
+  const waPct = Math.round((waUsed / limits.wa) * 100);
+  const aiPct = Math.round((aiUsed / limits.ai) * 100);
 
   function requireReason(title: string, sub: string, msg: string) {
     openReasonModal(title, sub, () => showToast(msg));
@@ -105,18 +119,35 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
                   </div>
                 </div>
                 <div className="field-row">
-                  <label>Status</label>
+                  <label>Subscription status</label>
                   <div className="val">
                     <span className={`status-pill ${t.status}`}>{t.status === 'past_due' ? 'Past due' : t.status.charAt(0).toUpperCase() + t.status.slice(1)}</span>
                   </div>
                 </div>
-                <div className="field-row"><label>MRR</label><div className="val num">Rs {t.mrr.toLocaleString('en-US')}</div></div>
               </div>
             </div>
 
             <div className="zone">
-              <div className="zone-head"><span className="zone-title">Integrations</span></div>
-              <div className="card" style={{ padding: '16px 20px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <div className="zone-head"><span className="zone-title">Usage this cycle</span></div>
+              <div className="card" style={{ padding: '16px 20px' }}>
+                <div className="usage-bar-row">
+                  <div className="usage-bar-top"><label>Orders</label><b>{ordersUsed.toLocaleString('en-US')} / {limits.orders.toLocaleString('en-US')}</b></div>
+                  <div className="usage-bar"><span style={{ width: `${ordersPct}%` }} className={ordersPct >= 85 ? 'warn' : undefined} /></div>
+                </div>
+                <div className="usage-bar-row">
+                  <div className="usage-bar-top"><label>WhatsApp messages</label><b>{waUsed.toLocaleString('en-US')} / {limits.wa.toLocaleString('en-US')}</b></div>
+                  <div className="usage-bar"><span style={{ width: `${waPct}%` }} className={waPct >= 85 ? 'warn' : undefined} /></div>
+                </div>
+                <div className="usage-bar-row">
+                  <div className="usage-bar-top"><label>AI calls</label><b>{aiUsed.toLocaleString('en-US')} / {limits.ai.toLocaleString('en-US')}</b></div>
+                  <div className="usage-bar"><span style={{ width: `${aiPct}%` }} className={aiPct >= 85 ? 'warn' : undefined} /></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="zone">
+              <div className="zone-head"><span className="zone-title">Connected integrations</span></div>
+              <div className="card" style={{ padding: '16px 20px', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                 {t.integrations.map(i => <span key={i} className="status-pill active" style={{ background: 'var(--card-2)', color: 'var(--text-2)' }}>{i}</span>)}
               </div>
             </div>
@@ -126,7 +157,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
             <div className="zone">
               <div className="zone-head">
                 <span className="zone-title">Health score</span>
-                <span className="zone-sub num" style={{ color: HEALTH_COLORS[t.band], fontWeight: 800, fontSize: 18 }}>{t.health}</span>
+                <span className="zone-sub num" style={{ color: HEALTH_COLORS[t.band], fontWeight: 800, fontSize: 20 }}>{t.health}</span>
               </div>
               <div className="card" style={{ padding: '16px 20px' }}>
                 <div className="health-breakdown">
@@ -158,6 +189,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
 
       {/* Sales & Products */}
       <div className={`detail-tab-panel${tab === 'sales' ? ' active' : ''}`} id="tab-sales">
+        <div className="zone-head" style={{ marginBottom: 12 }}><span className="zone-title">Revenue snapshot</span><span className="zone-sub">Last 30 days</span></div>
         <div className="mini-metric-grid">
           <div className="mini-metric"><label>Revenue (30d)</label><b className="num">Rs {d.salesTotal.toLocaleString('en-US')}</b></div>
           <div className="mini-metric"><label>Orders (30d)</label><b className="num">{d.orders30d}</b></div>
@@ -180,6 +212,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
 
       {/* Marketing & Ads */}
       <div className={`detail-tab-panel${tab === 'marketing' ? ' active' : ''}`} id="tab-marketing">
+        <div className="zone-head" style={{ marginBottom: 12 }}><span className="zone-title">Ad performance</span><span className="zone-sub">Live spend across connected platforms</span></div>
         <div className="mini-metric-grid">
           <div className="mini-metric"><label>Ad spend (30d)</label><b className="num">Rs {d.adSpend.toLocaleString('en-US')}</b></div>
           <div className="mini-metric"><label>Blended ROAS</label><b className="num" style={{ color: 'var(--accent-light)' }}>{d.blendedRoas}x</b></div>
@@ -187,7 +220,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
           <div className="mini-metric"><label>Best performer</label><b>{d.campaigns[0] ? `${d.campaigns[0].roas}x` : '—'}</b><span className="note">{d.campaigns[0]?.name ?? ''}</span></div>
         </div>
         <div className="zone">
-          <div className="zone-head"><span className="zone-title">Campaigns</span></div>
+          <div className="zone-head"><span className="zone-title">Campaigns</span><span className="zone-sub">Live Meta/Google/TikTok spend — same computed Scale/Monitor/Review logic as the merchant sees</span></div>
           <div className="card" style={{ padding: '16px 20px' }}>
             {d.campaigns.map(c => (
               <div key={c.name} className="product-row">
@@ -201,17 +234,15 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
 
       {/* WhatsApp */}
       <div className={`detail-tab-panel${tab === 'whatsapp' ? ' active' : ''}`} id="tab-whatsapp">
+        <div className="zone-head" style={{ marginBottom: 12 }}><span className="zone-title">WhatsApp activity</span><span className="zone-sub">Last 30 days</span></div>
         <div className="mini-metric-grid">
           <div className="mini-metric"><label>Messages sent (30d)</label><b className="num">{d.messagesSent.toLocaleString('en-US')}</b></div>
           <div className="mini-metric"><label>AI cost (30d)</label><b className="num">Rs {d.aiCost.toLocaleString('en-US')}</b></div>
           <div className="mini-metric"><label>Opt-in rate</label><b className="num">{d.optInRate}%</b></div>
           <div className="mini-metric"><label>Cost per message</label><b className="num">{d.messagesSent > 0 ? `Rs ${(d.aiCost / d.messagesSent).toFixed(2)}` : '—'}</b></div>
         </div>
-        {d.messagesSent === 0 && (
-          <div style={{ padding: '10px 16px', fontSize: 11.5, color: 'var(--text-3)', borderTop: '1px solid var(--border)' }}>No WhatsApp activity yet this cycle.</div>
-        )}
         <div className="zone">
-          <div className="zone-head"><span className="zone-title">Message templates in use</span></div>
+          <div className="zone-head"><span className="zone-title">Message templates in use</span><span className="zone-sub">By volume, last 30 days</span></div>
           <div className="card" style={{ padding: '16px 20px' }}>
             {d.waTemplates.map(w => (
               <div key={w.name} className="whatsapp-template-row">
@@ -226,6 +257,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
 
       {/* Inventory */}
       <div className={`detail-tab-panel${tab === 'inventory' ? ' active' : ''}`} id="tab-inventory">
+        <div className="zone-head" style={{ marginBottom: 12 }}><span className="zone-title">Stock overview</span><span className="zone-sub">Current snapshot</span></div>
         <div className="mini-metric-grid">
           <div className="mini-metric"><label>Total SKUs</label><b className="num">{d.totalSkus}</b></div>
           <div className="mini-metric"><label>Stock value</label><b className="num">Rs {d.stockValue.toLocaleString('en-US')}</b></div>
@@ -233,7 +265,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
           <div className="mini-metric"><label>Dead stock items</label><b className="num">{d.deadStockCount}</b></div>
         </div>
         <div className="zone">
-          <div className="zone-head"><span className="zone-title">Low stock items</span><span className="zone-sub">Below reorder point</span></div>
+          <div className="zone-head"><span className="zone-title">Low stock</span><span className="zone-sub">Below reorder point</span></div>
           <div className="card" style={{ padding: '16px 20px' }}>
             {d.lowStock.length === 0
               ? <div style={{ padding: '12px 0', color: 'var(--text-3)', fontSize: 12.5 }}>Nothing below reorder point right now.</div>
@@ -251,8 +283,8 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
       {/* Couriers */}
       <div className={`detail-tab-panel${tab === 'couriers' ? ' active' : ''}`} id="tab-couriers">
         <div className="zone">
-          <div className="zone-head"><span className="zone-title">Courier performance</span><span className="zone-sub">Last 30 days for this store</span></div>
-          <div className="card track-scroll">
+          <div className="zone-head"><span className="zone-title">Courier performance for this store</span><span className="zone-sub">Feeds the comparative data behind our own courier build</span></div>
+          <div className="card track-scroll" style={{ padding: '6px 8px' }}>
             {d.courierPerf.length === 0
               ? <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-3)' }}>Not enough shipment volume yet for courier performance data.</div>
               : (
