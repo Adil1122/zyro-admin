@@ -16,9 +16,7 @@ export default function RiskPage() {
   const router = useRouter();
   const { showToast } = useApp();
   const [appeals, setAppeals] = useState(APPEAL_INITIAL);
-  const [tab, setTab] = useState<'appeals' | 'fbr'>('appeals');
 
-  // FBR: approaching threshold range 5.5M–8.5M annual
   const fbrTable = useMemo(() => {
     return TENANTS
       .map(t => ({ ...t, annualRevenue: t.deepDive.salesTotal * 12 }))
@@ -31,7 +29,7 @@ export default function RiskPage() {
     const a = appeals.find(x => x.id === id);
     if (!a) return;
     setAppeals(prev => prev.filter(x => x.id !== id));
-    showToast(`Appeal ${action === 'approve' ? 'approved' : 'denied'} — ${a.tenant}`);
+    showToast(action === 'approve' ? 'Appeal approved — risk score cleared' : 'Appeal denied — flag stands');
   }
 
   return (
@@ -48,84 +46,72 @@ export default function RiskPage() {
         <div className="v6-mini-metric"><label>Unregistered (no NTN)</label><b className="num" style={{ color: 'var(--v6-warning)' }}>18</b></div>
       </div>
 
-      <div className="v6-detail-tabs" style={{ marginBottom: 16 }}>
-        <button className={`v6-detail-tab${tab === 'appeals' ? ' active' : ''}`} onClick={() => setTab('appeals')}>
-          Appeal queue {appeals.length > 0 && <span className="v6-nav-badge red" style={{ marginLeft: 6 }}>{appeals.length}</span>}
-        </button>
-        <button className={`v6-detail-tab${tab === 'fbr' ? ' active' : ''}`} onClick={() => setTab('fbr')}>FBR threshold</button>
+      {/* Appeals */}
+      <div className="v6-zone">
+        <div className="v6-zone-head">
+          <span className="v6-zone-title">Pending appeals</span>
+          <span className="v6-zone-sub">RTO & chargeback dispute resolution</span>
+        </div>
+        {appeals.length === 0 ? (
+          <div className="v6-card" style={{ padding: 32, textAlign: 'center', color: 'var(--v6-text-3)' }}>
+            No open appeals
+          </div>
+        ) : (
+          <div className="v6-risk-list">
+            {appeals.map(a => (
+              <div key={a.id} className="v6-risk-row" style={{ cursor: 'default' }}>
+                <div className="v6-risk-score-badge atrisk" style={{ fontSize: 10 }}>?</div>
+                <div className="v6-risk-row-info">
+                  <div className="v6-rn-name">{a.phone} · {a.tenant}</div>
+                  <div className="v6-rn-sub">{a.reason}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <button className="v6-btn-sm" style={{ height: 30, padding: '0 10px', fontSize: 11 }} onClick={() => handleAppeal(a.id, 'approve')}>Approve</button>
+                  <button className="v6-btn-sm v6-btn-danger-outline" style={{ height: 30, padding: '0 10px', fontSize: 11 }} onClick={() => handleAppeal(a.id, 'deny')}>Deny</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {tab === 'appeals' && (
-        <div className="v6-zone">
-          <div className="v6-zone-head"><span className="v6-zone-title">Pending appeals</span><span className="v6-zone-sub">RTO & chargeback dispute resolution</span></div>
-          {appeals.length === 0 ? (
-            <div className="v6-card" style={{ padding: 32, textAlign: 'center', color: 'var(--v6-text-3)' }}>
-              No open appeals
-            </div>
-          ) : (
-            <div className="v6-risk-list">
-              {appeals.map(a => (
-                <div key={a.id} className="v6-risk-row" style={{ cursor: 'default' }}>
-                  <div className="v6-risk-score-badge atrisk" style={{ fontSize: 10 }}>?</div>
-                  <div className="v6-risk-row-info">
-                    <div className="v6-rn-name">{a.tenant} <span style={{ color: 'var(--v6-text-3)', fontWeight: 400, fontSize: 12 }}>{a.phone}</span></div>
-                    <div className="v6-rn-sub">{a.reason}</div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                    <button className="v6-btn-sm" style={{ background: 'var(--v6-vivid-gradient)', color: '#fff', border: 'none' }} onClick={() => handleAppeal(a.id, 'approve')}>Approve</button>
-                    <button className="v6-btn-sm v6-btn-danger-outline" onClick={() => handleAppeal(a.id, 'deny')}>Deny</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+      {/* FBR threshold */}
+      <div className="v6-zone">
+        <div className="v6-zone-head">
+          <span className="v6-zone-title">FBR turnover threshold</span>
+          <span className="v6-zone-sub">Stores approaching Rs 7.5M annual — may require FBR registration</span>
         </div>
-      )}
-
-      {tab === 'fbr' && (
-        <div className="v6-zone">
-          <div className="v6-zone-head">
-            <span className="v6-zone-title">FBR turnover threshold</span>
-            <span className="v6-zone-sub">Stores approaching Rs 7.5M annual — may require FBR registration</span>
-          </div>
-          <div className="v6-card v6-track-scroll">
-            <table className="v6-tenant-table">
-              <thead>
-                <tr><th>Tenant</th><th>Plan</th><th>Projected annual revenue</th><th>Threshold</th><th>Status</th></tr>
-              </thead>
-              <tbody>
-                {fbrTable.length === 0 ? (
-                  <tr><td colSpan={5} style={{ padding: 32, textAlign: 'center', color: 'var(--v6-text-3)' }}>No stores in threshold range</td></tr>
-                ) : (
-                  fbrTable.map(t => {
-                    const alertSent = t.annualRevenue > 7_000_000;
-                    return (
-                      <tr key={t.id} className="v6-tenant-row" onClick={() => router.push(`/tenants/${t.id}`)}>
-                        <td>
-                          <div className="v6-t-name">{t.name}</div>
-                          <div className="v6-t-sub">{t.city}</div>
-                        </td>
-                        <td>{t.plan}</td>
-                        <td className="num" style={{ color: alertSent ? 'var(--v6-destructive)' : 'var(--v6-warning)', fontWeight: 700 }}>
-                          Rs {t.annualRevenue.toLocaleString('en-US')}
-                        </td>
-                        <td className="num" style={{ color: 'var(--v6-text-3)' }}>
-                          Rs {FBR_THRESHOLD.toLocaleString('en-US')}
-                        </td>
-                        <td>
-                          <span className={`v6-mini-pill ${alertSent ? 'review' : 'monitor'}`}>
-                            {alertSent ? 'Alert sent' : 'Approaching'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+        <div className="v6-card v6-track-scroll">
+          <table className="v6-compare-table">
+            <thead>
+              <tr><th>Tenant</th><th>Projected annual revenue</th><th>Threshold</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {fbrTable.length === 0 ? (
+                <tr><td colSpan={4} style={{ padding: 32, textAlign: 'center', color: 'var(--v6-text-3)' }}>No unregistered tenants currently near the threshold.</td></tr>
+              ) : (
+                fbrTable.map(t => {
+                  const alertSent = t.annualRevenue > 7_000_000;
+                  return (
+                    <tr key={t.id} className="v6-tenant-row" onClick={() => router.push(`/tenants/${t.id}`)}>
+                      <td style={{ fontWeight: 700 }}>{t.name}</td>
+                      <td className="num" style={{ color: alertSent ? 'var(--v6-destructive)' : 'var(--v6-warning)', fontWeight: 700 }}>
+                        Rs {t.annualRevenue.toLocaleString('en-US')}
+                      </td>
+                      <td className="num" style={{ color: 'var(--v6-text-3)' }}>Rs {FBR_THRESHOLD.toLocaleString('en-US')}</td>
+                      <td>
+                        <span className={`v6-mini-pill ${alertSent ? 'review' : 'monitor'}`}>
+                          {alertSent ? 'Alert sent' : 'Approaching'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
     </div>
   );
 }

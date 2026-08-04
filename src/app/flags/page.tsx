@@ -33,14 +33,14 @@ export default function FlagsPage() {
     <div>
       <div className="v6-page-head">
         <h1>Feature Flags</h1>
-        <div className="v6-page-sub">Kill switches and gradual rollout controls</div>
+        <div className="v6-page-sub">Kill switches and gradual rollout controls for platform features</div>
       </div>
 
       {/* Kill switches */}
       <div className="v6-zone">
         <div className="v6-zone-head">
           <span className="v6-zone-title">Kill switches</span>
-          <span className="v6-zone-sub">Disabling requires a logged reason. Re-enabling does not.</span>
+          <span className="v6-zone-sub">Default on. Only ever flipped off during an active incident.</span>
         </div>
         {switches.map(ks => (
           <div key={ks.id} className={`v6-switch-row${ks.active ? ' ks-active' : ''}`}>
@@ -59,11 +59,11 @@ export default function FlagsPage() {
         ))}
       </div>
 
-      {/* Feature flags */}
+      {/* Rollout flags */}
       <div className="v6-zone">
         <div className="v6-zone-head">
-          <span className="v6-zone-title">Feature flags</span>
-          <span className="v6-zone-sub">Gradual rollout — drag slider to set % of tenants receiving the feature</span>
+          <span className="v6-zone-title">Rollout flags</span>
+          <span className="v6-zone-sub">Gradual percentage rollout, never 0% to 100% in one step</span>
         </div>
         <div className="v6-flags-card">
           {flags.map(f => (
