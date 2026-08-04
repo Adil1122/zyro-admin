@@ -64,18 +64,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    setIsLoggedIn(sessionStorage.getItem('zyro-admin-auth') === '1');
+    // Verify session cookie via API (middleware handles redirects on full navigations,
+    // this handles expiry while the user is already on the page)
+    fetch('/api/auth/me')
+      .then(r => setIsLoggedIn(r.ok))
+      .catch(() => setIsLoggedIn(false));
   }, []);
 
   const login = useCallback(() => {
-    sessionStorage.setItem('zyro-admin-auth', '1');
+    // Session cookie is set by /api/auth/verify — no client-side storage needed
     setIsLoggedIn(true);
   }, []);
 
   const logout = useCallback(() => {
-    sessionStorage.removeItem('zyro-admin-auth');
-    setIsLoggedIn(false);
-    endImpersonation();
+    fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
+      setIsLoggedIn(false);
+      window.location.href = '/login';
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

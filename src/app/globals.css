@@ -2844,75 +2844,102 @@ textarea.invalid {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 20px;
 }
 .v6-login-card {
   background: var(--v6-card);
-  border: 1px solid var(--v6-border);
-  border-radius: 14px;
-  padding: 36px 32px;
+  border: 1px solid var(--v6-border-strong);
+  border-radius: var(--v6-radius-lg);
+  padding: 32px;
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
 }
 .v6-login-logo {
   display: flex;
   align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.v6-login-sub { font-size: 12.5px; color: var(--v6-text-3); margin: 0 0 20px; line-height: 1.5; }
+.v6-login-notice {
+  display: flex;
   gap: 8px;
-  margin-bottom: 28px;
-}
-.v6-login-title { font-size: 20px; font-weight: 800; color: var(--v6-text-1); margin: 0 0 4px; }
-.v6-login-sub { font-size: 13px; color: var(--v6-text-3); margin: 0 0 24px; }
-.v6-login-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-.v6-login-field label { font-size: 11.5px; font-weight: 600; color: var(--v6-text-3); letter-spacing: 0.05em; text-transform: uppercase; }
-.v6-login-field input {
-  background: var(--v6-bg);
-  border: 1px solid var(--v6-border);
-  border-radius: 7px;
-  color: var(--v6-text-1);
-  font-size: 14px;
+  background: var(--v6-meta-tint);
+  border: 1px solid rgba(96,165,250,0.3);
+  border-radius: 9px;
   padding: 10px 12px;
-  font-family: inherit;
-  transition: border-color 0.15s;
+  font-size: 11.5px;
+  color: var(--v6-text-2);
+  line-height: 1.5;
+  margin-bottom: 20px;
 }
-.v6-login-field input:focus { outline: none; border-color: var(--v6-accent); }
-.v6-login-btn {
+.v6-login-field { margin-bottom: 16px; }
+.v6-login-field label { display: block; font-size: 11.5px; font-weight: 700; color: var(--v6-text-3); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 7px; }
+.v6-login-field input {
   width: 100%;
-  height: 40px;
-  background: var(--v6-accent);
+  height: 42px;
+  background: var(--v6-card-2);
+  border: 1px solid var(--v6-border-strong);
+  border-radius: 9px;
+  padding: 0 13px;
+  color: var(--v6-text-1);
+  font-size: 13.5px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.v6-login-field input:focus { border-color: var(--v6-accent); }
+.v6-login-err {
+  font-size: 11.5px;
+  color: var(--v6-destructive);
+  margin-bottom: 14px;
+  display: none;
+}
+.v6-login-err.show { display: block; }
+.v6-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 44px;
+  background: var(--v6-accent-gradient);
   border: none;
-  border-radius: 7px;
+  border-radius: 9px;
   color: var(--v6-accent-ink);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
-  margin-top: 8px;
   font-family: inherit;
-  transition: background 0.15s;
+  transition: filter 0.15s;
 }
-.v6-login-btn:hover { background: var(--v6-accent-light); }
-.v6-login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.v6-mfa-row { display: flex; gap: 8px; margin: 8px 0; }
+.v6-login-btn:hover:not(:disabled) { filter: brightness(1.06); }
+.v6-login-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.v6-mfa-row { display: flex; gap: 8px; margin-bottom: 20px; }
 .v6-mfa-digit {
   flex: 1;
-  height: 48px;
-  background: var(--v6-bg);
-  border: 1px solid var(--v6-border);
-  border-radius: 7px;
+  min-width: 0;
+  height: 50px;
+  background: var(--v6-card-2);
+  border: 1px solid var(--v6-border-strong);
+  border-radius: 9px;
   color: var(--v6-text-1);
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 700;
   text-align: center;
   font-family: inherit;
+  outline: none;
   transition: border-color 0.15s;
 }
-.v6-mfa-digit:focus { outline: none; border-color: var(--v6-accent); }
+.v6-mfa-digit:focus { border-color: var(--v6-accent); }
 .v6-back-btn {
   background: none;
   border: none;
   color: var(--v6-text-3);
   font-size: 12.5px;
   cursor: pointer;
-  padding: 0 0 16px;
+  padding: 0;
   font-family: inherit;
   display: inline-flex;
   align-items: center;
