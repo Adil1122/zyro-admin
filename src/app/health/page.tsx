@@ -1,10 +1,16 @@
 'use client';
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { seededRand } from '@/lib/data';
 import type { Tenant } from '@/lib/types';
 
-const ALL_COURIERS = ['TCS','Leopards','PostEx','Trax','M&P','BlueEX','FedEx','Daewoo','Rider','SLG Trax','tranzo','BarqRaftar','Call Courier','DoDeliver'];
+interface CourierRow {
+  name: string;
+  status: 'healthy' | 'degraded' | 'down';
+  successRate: number;
+  latencyMs: number;
+  affectedTenants: number;
+}
+
 const QUEUES: [string, number, string, number][] = [
   ['order-processing', 12, '340/min', 0],
   ['whatsapp-outbound', 340, '1.2k/min', 2],
@@ -18,22 +24,17 @@ const QUEUES: [string, number, string, number][] = [
 
 export default function HealthPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [courierHealth, setCourierHealth] = useState<CourierRow[]>([]);
 
   useEffect(() => {
     fetch('/api/tenants')
       .then(r => r.json())
       .then(data => setTenants(Array.isArray(data) ? data : []))
       .catch(() => {});
-  }, []);
-
-  const courierHealth = useMemo(() => {
-    const rand = seededRand('courier-health-v1');
-    return ALL_COURIERS.map(name => {
-      const r = rand();
-      const status = r > 0.93 ? 'down' : r > 0.8 ? 'degraded' : 'healthy';
-      const successRate = status === 'down' ? Math.floor(r * 20) : status === 'degraded' ? 70 + Math.floor(r * 15) : 95 + Math.floor(r * 5);
-      return { name, status, successRate, latency: Math.floor(rand() * 400) + 120, affectedTenants: status === 'healthy' ? 0 : Math.floor(rand() * 30) + 3 };
-    });
+    fetch('/api/health/couriers')
+      .then(r => r.json())
+      .then(data => setCourierHealth(Array.isArray(data) ? data : []))
+      .catch(() => {});
   }, []);
 
   const atRiskWa = tenants.filter(t => t.health < 65 && t.deepDive?.messagesSent > 400).slice(0, 6);
@@ -52,7 +53,7 @@ export default function HealthPage() {
       </div>
 
       <div className="zone">
-        <div className="zone-head"><span className="zone-title">Courier API status</span><span className="zone-sub">Live, all 14 integrations</span></div>
+        <div className="zone-head"><span className="zone-title">Courier API status</span><span className="zone-sub">Live, all {courierHealth.length || 14} integrations</span></div>
         <div className="card track-scroll">
           <table className="compare-table">
             <thead><tr><th>Courier</th><th>Status</th><th>Success rate (1h)</th><th>Avg latency</th><th>Affected tenants</th></tr></thead>
@@ -62,7 +63,7 @@ export default function HealthPage() {
                   <td style={{ fontWeight: 700 }}>{c.name}</td>
                   <td>{statusPill(c.status)}</td>
                   <td className="num">{c.successRate}%</td>
-                  <td className="num">{c.latency}ms</td>
+                  <td className="num">{c.latencyMs}ms</td>
                   <td className="num">{c.affectedTenants > 0 ? c.affectedTenants : '—'}</td>
                 </tr>
               ))}

@@ -48,6 +48,17 @@ create table if not exists feature_flags (
   updated_at timestamptz default now()
 );
 
+-- Courier health
+create table if not exists courier_health (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  status text not null default 'healthy',  -- 'healthy' | 'degraded' | 'down'
+  success_rate integer not null default 95,
+  latency_ms integer not null default 300,
+  affected_tenants integer not null default 0,
+  updated_at timestamptz default now()
+);
+
 -- Announcements
 create table if not exists announcements (
   id uuid primary key default gen_random_uuid(),

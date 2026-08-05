@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { Tenant } from '@/lib/types';
-import { COURIER_HEALTH } from '@/lib/data';
 
 const AUDIT_ICON: Record<string, string> = { impersonation: '👁', pii: '🔒', billing: '💳', account: '🚩' };
 
@@ -14,9 +13,12 @@ function fmtMrr(n: number) {
   return `Rs ${n.toLocaleString('en-US')}`;
 }
 
+interface CourierRow { name: string; status: 'healthy' | 'degraded' | 'down'; }
+
 export default function OverviewPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [audit, setAudit] = useState<AuditRow[]>([]);
+  const [couriers, setCouriers] = useState<CourierRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,6 +29,10 @@ export default function OverviewPage() {
     fetch('/api/audit?limit=4')
       .then(r => r.json())
       .then(data => setAudit(Array.isArray(data) ? data : []))
+      .catch(() => {});
+    fetch('/api/health/couriers')
+      .then(r => r.json())
+      .then(data => setCouriers(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
 
@@ -39,8 +45,8 @@ export default function OverviewPage() {
     : 0;
   const aiSpendMonthly = tenants.reduce((sum, t) => sum + (t.deepDive?.aiCost ?? 0), 0);
   const aiSpendDaily = Math.round(aiSpendMonthly / 30);
-  const operationalCount = COURIER_HEALTH.filter(c => c.status === 'operational').length;
-  const degradedNames = COURIER_HEALTH.filter(c => c.status !== 'operational').map(c => c.name);
+  const operationalCount = couriers.filter(c => c.status === 'healthy').length;
+  const degradedNames = couriers.filter(c => c.status !== 'healthy').map(c => c.name);
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -78,7 +84,7 @@ export default function OverviewPage() {
           <div className="metric">
             <label>Courier health</label>
             <b className="num" style={{ color: degradedNames.length > 0 ? 'var(--accent-light)' : 'var(--accent)' }}>
-              {operationalCount}/{COURIER_HEALTH.length}
+              {couriers.length === 0 ? '—' : `${operationalCount}/${couriers.length}`}
             </b>
             {degradedNames.length > 0 && (
               <div className="trend down">{degradedNames.slice(0, 2).join(', ')} degraded</div>

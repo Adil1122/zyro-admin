@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
-import { TENANTS } from '@/lib/data';
+import { TENANTS, COURIER_HEALTH } from '@/lib/data';
 
 const FLAGS = [
   { name: 'kill-platform-whatsapp-outbound', flag_type: 'kill', description: 'Emergency stop — pauses all outbound WhatsApp sends, every tenant, immediately', owner: 'Anes Khan', enabled: true, rollout: 100 },
@@ -44,5 +44,15 @@ export async function POST() {
   const { error: fe } = await sb.from('feature_flags').upsert(FLAGS, { onConflict: 'name' });
   if (fe) return NextResponse.json({ error: fe.message }, { status: 500 });
 
-  return NextResponse.json({ seeded: { tenants: tenantRows.length, flags: FLAGS.length } });
+  const courierRows = COURIER_HEALTH.map(c => ({
+    name: c.name,
+    status: c.status === 'operational' ? 'healthy' : c.status,
+    success_rate: c.successRate,
+    latency_ms: c.latencyMs,
+    affected_tenants: c.affectedTenants,
+  }));
+  const { error: ce } = await sb.from('courier_health').upsert(courierRows, { onConflict: 'name' });
+  if (ce) return NextResponse.json({ error: ce.message }, { status: 500 });
+
+  return NextResponse.json({ seeded: { tenants: tenantRows.length, flags: FLAGS.length, couriers: courierRows.length } });
 }
