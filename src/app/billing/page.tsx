@@ -3,17 +3,30 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { Tenant } from '@/lib/types';
 
+function fmtMrr(n: number) {
+  if (n >= 1_000_000) return `Rs ${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `Rs ${(n / 1_000).toFixed(1)}k`;
+  return `Rs ${n.toLocaleString('en-US')}`;
+}
+
 export default function BillingPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch('/api/tenants')
       .then(r => r.json())
-      .then(data => setTenants(Array.isArray(data) ? data : []))
-      .catch(() => {});
+      .then(data => { setTenants(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
 
   const dunning = tenants.filter(t => t.status === 'past_due');
+  const activeTenants = tenants.filter(t => t.status === 'active');
+  const totalMrr = tenants.reduce((sum, t) => sum + t.mrr, 0);
+  const pastDueAmount = dunning.reduce((sum, t) => sum + t.mrr, 0);
+  const churnRate = tenants.length > 0
+    ? ((dunning.length / tenants.length) * 100).toFixed(1)
+    : '0.0';
 
   return (
     <div className="page-anim">
@@ -24,10 +37,10 @@ export default function BillingPage() {
 
       <div className="zone">
         <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>
-          <div className="metric"><label>MRR</label><b className="num">Rs 5.81M</b></div>
-          <div className="metric"><label>Churn (logo)</label><b className="num">2.1%</b></div>
-          <div className="metric"><label>In dunning</label><b className="num" style={{ color: 'var(--warning)' }}>{dunning.length || 3} tenants</b></div>
-          <div className="metric"><label>Past-due amount</label><b className="num">Rs {dunning.reduce((s, t) => s + t.mrr, 0).toLocaleString('en-US') || '38,997'}</b></div>
+          <div className="metric"><label>MRR</label><b className="num">{loading ? '—' : fmtMrr(totalMrr)}</b></div>
+          <div className="metric"><label>At-risk rate</label><b className="num">{loading ? '—' : `${churnRate}%`}</b><div className="trend up">of all tenants past due</div></div>
+          <div className="metric"><label>In dunning</label><b className="num" style={{ color: 'var(--warning)' }}>{loading ? '—' : `${dunning.length} tenants`}</b></div>
+          <div className="metric"><label>Past-due amount</label><b className="num">{loading ? '—' : fmtMrr(pastDueAmount)}</b></div>
         </div>
       </div>
 

@@ -2,25 +2,47 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { Tenant } from '@/lib/types';
+import { COURIER_HEALTH } from '@/lib/data';
 
 const AUDIT_ICON: Record<string, string> = { impersonation: '👁', pii: '🔒', billing: '💳', account: '🚩' };
 
 interface AuditRow { id: string; type: string; admin: string; action: string; tenant: string; time: string; }
 
+function fmtMrr(n: number) {
+  if (n >= 1_000_000) return `Rs ${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `Rs ${(n / 1_000).toFixed(1)}k`;
+  return `Rs ${n.toLocaleString('en-US')}`;
+}
+
 export default function OverviewPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [audit, setAudit] = useState<AuditRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch('/api/tenants')
       .then(r => r.json())
-      .then(data => setTenants(Array.isArray(data) ? data : []))
-      .catch(() => {});
+      .then(data => { setTenants(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
     fetch('/api/audit?limit=4')
       .then(r => r.json())
       .then(data => setAudit(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
+
+  const paidTenants = tenants.filter(t => t.status === 'active');
+  const trialTenants = tenants.filter(t => t.status === 'trial');
+  const activeTenants = paidTenants.length + trialTenants.length;
+  const totalMrr = tenants.reduce((sum, t) => sum + t.mrr, 0);
+  const conversionRate = paidTenants.length + trialTenants.length > 0
+    ? Math.round((paidTenants.length / (paidTenants.length + trialTenants.length)) * 100)
+    : 0;
+  const aiSpendMonthly = tenants.reduce((sum, t) => sum + (t.deepDive?.aiCost ?? 0), 0);
+  const aiSpendDaily = Math.round(aiSpendMonthly / 30);
+  const operationalCount = COURIER_HEALTH.filter(c => c.status === 'operational').length;
+  const degradedNames = COURIER_HEALTH.filter(c => c.status !== 'operational').map(c => c.name);
+
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   const risky = tenants
     .filter(t => t.band === 'atrisk' || t.band === 'critical')
@@ -30,16 +52,38 @@ export default function OverviewPage() {
     <div className="page-anim">
       <div className="page-head">
         <h1>Overview</h1>
-        <div className="page-sub">Platform-wide, not tenant-scoped — Wednesday, 29 July 2026</div>
+        <div className="page-sub">Platform-wide, not tenant-scoped — {today}</div>
       </div>
 
       <div className="zone">
         <div className="metric-grid">
-          <div className="metric"><label>Active tenants</label><b className="num">742</b><div className="trend up">↑ 4.2% this month</div></div>
-          <div className="metric"><label>MRR</label><b className="num">Rs 5.81M</b><div className="trend up">↑ 6.8% this month</div></div>
-          <div className="metric"><label>Trial → paid</label><b className="num">31%</b><div className="trend down">↓ 2pt this month</div></div>
-          <div className="metric"><label>AI spend today</label><b className="num">Rs 8,240</b><div className="trend up">of Rs 15,000 budget</div></div>
-          <div className="metric"><label>Courier health</label><b className="num" style={{ color: 'var(--accent-light)' }}>13/14</b><div className="trend down">Leopards degraded</div></div>
+          <div className="metric">
+            <label>Active tenants</label>
+            <b className="num">{loading ? '—' : activeTenants.toLocaleString('en-US')}</b>
+          </div>
+          <div className="metric">
+            <label>MRR</label>
+            <b className="num">{loading ? '—' : fmtMrr(totalMrr)}</b>
+          </div>
+          <div className="metric">
+            <label>Trial → paid</label>
+            <b className="num">{loading ? '—' : `${conversionRate}%`}</b>
+            {!loading && trialTenants.length === 0 && <div className="trend up">No active trials</div>}
+          </div>
+          <div className="metric">
+            <label>AI spend / day</label>
+            <b className="num">{loading ? '—' : `Rs ${aiSpendDaily.toLocaleString('en-US')}`}</b>
+            <div className="trend up">est. from 30-day rolling</div>
+          </div>
+          <div className="metric">
+            <label>Courier health</label>
+            <b className="num" style={{ color: degradedNames.length > 0 ? 'var(--accent-light)' : 'var(--accent)' }}>
+              {operationalCount}/{COURIER_HEALTH.length}
+            </b>
+            {degradedNames.length > 0 && (
+              <div className="trend down">{degradedNames.slice(0, 2).join(', ')} degraded</div>
+            )}
+          </div>
         </div>
       </div>
 
