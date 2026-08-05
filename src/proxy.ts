@@ -3,7 +3,7 @@ import { verifySession, COOKIE_NAMES } from '@/lib/auth';
 
 const PUBLIC = ['/login', '/api/auth/'];
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (PUBLIC.some(p => pathname.startsWith(p))) {

@@ -1,8 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { verifyPendingToken, signSession, COOKIE_NAMES, cookieOpts } from '@/lib/auth';
 
-export async function POST(req: NextRequest) {
-  const pending = req.cookies.get(COOKIE_NAMES.PENDING)?.value;
+export async function POST(req: Request) {
+  const cookieStore = await cookies();
+  const pending = cookieStore.get(COOKIE_NAMES.PENDING)?.value;
+
   if (!pending) {
     return NextResponse.json(
       { error: 'Sign-in session expired. Please start over.' },
@@ -30,8 +33,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const res = NextResponse.json({ ok: true, email });
-  res.cookies.set(COOKIE_NAMES.SESSION, signSession(email), cookieOpts(8 * 60 * 60));
-  res.cookies.delete(COOKIE_NAMES.PENDING);
-  return res;
+  cookieStore.set(COOKIE_NAMES.SESSION, signSession(email), cookieOpts(8 * 60 * 60));
+  cookieStore.delete(COOKIE_NAMES.PENDING);
+
+  return NextResponse.json({ ok: true, email });
 }

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
+import { cookies } from 'next/headers';
 import { generateOtp, signPendingToken, COOKIE_NAMES, cookieOpts } from '@/lib/auth';
 import { sendOtpEmail } from '@/lib/mailer';
 
-// Simple in-memory rate limiter (resets on server restart; sufficient for single-server deployments)
 const attempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS     = 15 * 60 * 1000;
@@ -53,7 +53,6 @@ export async function POST(req: NextRequest) {
   const adminEmail    = (process.env.ADMIN_EMAIL ?? '').toLowerCase();
   const adminPassword = process.env.ADMIN_PASSWORD ?? '';
 
-  // Constant-time comparison to prevent timing attacks
   let valid = false;
   try {
     const emailBuf  = Buffer.alloc(Math.max(email.length,    adminEmail.length),    0);
@@ -75,20 +74,21 @@ export async function POST(req: NextRequest) {
 
   clearRate(ip);
 
-  const otp    = generateOtp();
-  const token  = signPendingToken(email, otp);
+  const otp   = generateOtp();
+  const token = signPendingToken(email, otp);
 
   try {
     await sendOtpEmail(email, otp);
   } catch (err) {
     console.error('[auth/login] Failed to send OTP email:', err);
     return NextResponse.json(
-      { error: 'Could not send sign-in code. Check your SMTP configuration.' },
+      { error: 'Could not send sign-in code. Check your email configuration.' },
       { status: 500 },
     );
   }
 
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE_NAMES.PENDING, token, cookieOpts(5 * 60));
-  return res;
+  const cookieStore = await cookies();
+  cookieStore.set(COOKIE_NAMES.PENDING, token, cookieOpts(5 * 60));
+
+  return NextResponse.json({ ok: true });
 }
