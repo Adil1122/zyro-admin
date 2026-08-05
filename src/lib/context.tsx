@@ -24,7 +24,7 @@ interface AppContextValue {
 
   // Reason modal
   reasonModal: ReasonModalState;
-  openReasonModal: (title: string, sub: string, onConfirm: () => void) => void;
+  openReasonModal: (title: string, sub: string, onConfirm: (reason: string) => void) => void;
   closeReasonModal: () => void;
   confirmReasonModal: (reason: string) => void;
 
@@ -106,6 +106,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     impersonationSeconds.current = 15 * 60;
     setImpersonationCountdown('15:00');
 
+    fetch('/api/audit', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'impersonation', action: `Started impersonation session`, tenant: tenant.name, reason: 'MFA step-up verified' }) })
+      .catch(() => {});
+
     impersonationInterval.current = setInterval(() => {
       impersonationSeconds.current -= 1;
       if (impersonationSeconds.current <= 0) {
@@ -122,7 +126,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [endImpersonation]);
 
   // ── Reason modal ──────────────────────────────────────────────────────────
-  const openReasonModal = useCallback((title: string, sub: string, onConfirm: () => void) => {
+  const openReasonModal = useCallback((title: string, sub: string, onConfirm: (reason: string) => void) => {
     setReasonModal({ open: true, title, sub, onConfirm });
   }, []);
 
@@ -134,7 +138,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (reason.trim().length < 4) { showToast('A reason is required for this action'); return; }
     const cb = reasonModal.onConfirm;
     closeReasonModal();
-    cb?.();
+    cb?.(reason);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reasonModal.onConfirm, closeReasonModal]);
 

@@ -1,12 +1,28 @@
 'use client';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { TENANTS, FULL_AUDIT_LOG } from '@/lib/data';
+import type { Tenant } from '@/lib/types';
 
 const AUDIT_ICON: Record<string, string> = { impersonation: '👁', pii: '🔒', billing: '💳', account: '🚩' };
 
+interface AuditRow { id: string; type: string; admin: string; action: string; tenant: string; time: string; }
+
 export default function OverviewPage() {
-  const risky = TENANTS
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [audit, setAudit] = useState<AuditRow[]>([]);
+
+  useEffect(() => {
+    fetch('/api/tenants')
+      .then(r => r.json())
+      .then(data => setTenants(Array.isArray(data) ? data : []))
+      .catch(() => {});
+    fetch('/api/audit?limit=4')
+      .then(r => r.json())
+      .then(data => setAudit(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+
+  const risky = tenants
     .filter(t => t.band === 'atrisk' || t.band === 'critical')
     .sort((a, b) => a.health - b.health);
 
@@ -33,21 +49,23 @@ export default function OverviewPage() {
           <span className="zone-sub">Health score below 60 — weekly customer-success review list</span>
         </div>
         <div className="risk-list">
-          {risky.map(t => (
-            <Link key={t.id} href={`/tenants/${t.id}`} className="risk-row">
-              <div className={`risk-score-badge ${t.band === 'critical' ? 'critical' : 'atrisk'}`}>{t.health}</div>
-              <div className="risk-row-info">
-                <div className="rn-name">{t.name}</div>
-                <div className="rn-sub">{t.plan} · {t.orders30d} orders / 30d · {t.city}</div>
-              </div>
-              <span className={`risk-tag ${t.band === 'critical' ? 'critical' : 'atrisk'}`}>
-                {t.band === 'critical' ? 'Critical — call today' : 'At risk'}
-              </span>
-              <svg className="risk-chev" width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M6 3.5L11 8l-5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </Link>
-          ))}
+          {risky.length === 0
+            ? <div className="risk-row" style={{ cursor: 'default' }}><div className="risk-row-info"><div className="rn-sub">No at-risk tenants right now.</div></div></div>
+            : risky.map(t => (
+              <Link key={t.id} href={`/tenants/${t.id}`} className="risk-row">
+                <div className={`risk-score-badge ${t.band === 'critical' ? 'critical' : 'atrisk'}`}>{t.health}</div>
+                <div className="risk-row-info">
+                  <div className="rn-name">{t.name}</div>
+                  <div className="rn-sub">{t.plan} · {t.orders30d} orders / 30d · {t.city}</div>
+                </div>
+                <span className={`risk-tag ${t.band === 'critical' ? 'critical' : 'atrisk'}`}>
+                  {t.band === 'critical' ? 'Critical — call today' : 'At risk'}
+                </span>
+                <svg className="risk-chev" width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M6 3.5L11 8l-5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </Link>
+            ))}
         </div>
       </div>
 
@@ -57,13 +75,15 @@ export default function OverviewPage() {
           <span className="zone-sub">Last 24 hours, all admins</span>
         </div>
         <div className="audit-feed">
-          {FULL_AUDIT_LOG.slice(0, 4).map((a, i) => (
-            <div key={i} className="audit-row">
-              <span className="ic">{AUDIT_ICON[a.type] || '•'}</span>
-              <span className="at-text"><b>{a.admin}</b> {a.action.toLowerCase()} — <b>{a.tenant}</b></span>
-              <span className="at-time">{a.time}</span>
-            </div>
-          ))}
+          {audit.length === 0
+            ? <div className="audit-row" style={{ color: 'var(--text-3)' }}>No recent activity.</div>
+            : audit.map((a, i) => (
+              <div key={a.id ?? i} className="audit-row">
+                <span className="ic">{AUDIT_ICON[a.type] || '•'}</span>
+                <span className="at-text"><b>{a.admin}</b> {a.action.toLowerCase()} — <b>{a.tenant}</b></span>
+                <span className="at-time">{a.time}</span>
+              </div>
+            ))}
         </div>
       </div>
     </div>

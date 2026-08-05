@@ -1,7 +1,7 @@
 'use client';
-import React, { useState } from 'react';
-import { TENANTS } from '@/lib/data';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context';
+import type { Tenant } from '@/lib/types';
 
 const APPEALS = [
   { phone: '+9230xxxx1122', tenant: "Sana's Boutique", reason: 'Customer says courier marked RTO but they never received a delivery attempt' },
@@ -11,9 +11,17 @@ const APPEALS = [
 
 export default function RiskPage() {
   const { showToast } = useApp();
+  const [tenants, setTenants] = useState<Tenant[]>([]);
 
-  const nearThreshold = TENANTS.filter(t => {
-    const annual = t.deepDive.salesTotal * 12;
+  useEffect(() => {
+    fetch('/api/tenants')
+      .then(r => r.json())
+      .then(data => setTenants(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+
+  const nearThreshold = tenants.filter(t => {
+    const annual = (t.deepDive?.salesTotal ?? 0) * 12;
     return annual > 5500000 && annual < 8500000;
   }).slice(0, 6);
 
@@ -60,29 +68,18 @@ export default function RiskPage() {
         </div>
         <div className="card track-scroll">
           <table className="compare-table">
-            <thead>
-              <tr>
-                <th>Tenant</th>
-                <th>12-month revenue</th>
-                <th>Threshold</th>
-                <th>Status</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Tenant</th><th>12-month revenue</th><th>Threshold</th><th>Status</th></tr></thead>
             <tbody>
               {nearThreshold.length === 0 ? (
                 <tr><td colSpan={4} style={{ textAlign: 'center', padding: 20, color: 'var(--text-3)' }}>No unregistered tenants currently near the threshold.</td></tr>
               ) : nearThreshold.map(t => {
-                const annualRev = t.deepDive.salesTotal * 12;
+                const annualRev = (t.deepDive?.salesTotal ?? 0) * 12;
                 return (
                   <tr key={t.id}>
                     <td style={{ fontWeight: 700 }}>{t.name}</td>
                     <td className="num">Rs {annualRev.toLocaleString('en-US')}</td>
                     <td className="num">Rs 7,500,000</td>
-                    <td>
-                      <span className={`mini-pill ${annualRev > 7000000 ? 'review' : 'monitor'}`}>
-                        {annualRev > 7000000 ? 'Alert sent' : 'Approaching'}
-                      </span>
-                    </td>
+                    <td><span className={`mini-pill ${annualRev > 7000000 ? 'review' : 'monitor'}`}>{annualRev > 7000000 ? 'Alert sent' : 'Approaching'}</span></td>
                   </tr>
                 );
               })}

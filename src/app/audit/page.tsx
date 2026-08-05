@@ -1,6 +1,5 @@
 'use client';
-import React, { useState, useMemo } from 'react';
-import { FULL_AUDIT_LOG } from '@/lib/data';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const TYPE_CHIPS = [
   { label: 'All', value: 'all' },
@@ -10,18 +9,34 @@ const TYPE_CHIPS = [
   { label: 'Account changes', value: 'account' },
 ];
 
+interface AuditRow {
+  id: string;
+  admin: string;
+  action: string;
+  tenant: string;
+  type: string;
+  reason: string;
+  time: string;
+}
+
 export default function AuditPage() {
   const [filterType, setFilterType] = useState('all');
   const [searchQ, setSearchQ] = useState('');
+  const [entries, setEntries] = useState<AuditRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = useMemo(() => {
-    let list = FULL_AUDIT_LOG.filter(a => filterType === 'all' || a.type === filterType);
-    if (searchQ) {
-      const q = searchQ.toLowerCase();
-      list = list.filter(a => a.admin.toLowerCase().includes(q) || a.tenant.toLowerCase().includes(q) || a.action.toLowerCase().includes(q));
-    }
-    return list;
+  const load = useCallback(() => {
+    setLoading(true);
+    const params = new URLSearchParams({ limit: '50' });
+    if (filterType !== 'all') params.set('type', filterType);
+    if (searchQ) params.set('search', searchQ);
+    fetch(`/api/audit?${params}`)
+      .then(r => r.json())
+      .then(data => setEntries(Array.isArray(data) ? data : []))
+      .finally(() => setLoading(false));
   }, [filterType, searchQ]);
+
+  useEffect(() => { load(); }, [load]);
 
   return (
     <div className="page-anim">
@@ -54,7 +69,7 @@ export default function AuditPage() {
         </div>
 
         <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginBottom: 10 }}>
-          Showing {filtered.length} of {FULL_AUDIT_LOG.length} events
+          {loading ? 'Loading…' : `Showing ${entries.length} events`}
         </div>
 
         <div className="card track-scroll">
@@ -69,10 +84,12 @@ export default function AuditPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--text-3)' }}>Loading…</td></tr>
+              ) : entries.length === 0 ? (
                 <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--text-3)' }}>No matching events.</td></tr>
-              ) : filtered.slice(0, 50).map((a, i) => (
-                <tr key={i}>
+              ) : entries.map(a => (
+                <tr key={a.id}>
                   <td className="num" style={{ color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{a.time}</td>
                   <td style={{ fontWeight: 700 }}>{a.admin}</td>
                   <td>{a.action}</td>

@@ -130,7 +130,7 @@ export interface ReasonModalState {
   open: boolean;
   title: string;
   sub: string;
-  onConfirm: (() => void) | null;
+  onConfirm: ((reason: string) => void) | null;
 }
 
 export interface MfaStepUpState {

@@ -1,6 +1,7 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context';
+import { logAudit } from '@/lib/audit-client';
 
 const AUDIENCE_OPTIONS = [
   { label: 'All tenants (742)', value: 'all' },
@@ -8,25 +9,54 @@ const AUDIENCE_OPTIONS = [
   { label: 'Pro plan only', value: 'pro' },
 ];
 
-const HISTORY_INITIAL = [
-  { icon: '📢', text: 'Scheduled maintenance completed — all systems normal', audience: 'All tenants', time: '3 days ago' },
-  { icon: '🎉', text: 'New: Multi-warehouse routing now available on Pro plan', audience: 'Pro plan only', time: '1 week ago' },
-];
+interface HistoryEntry {
+  id?: string;
+  icon: string;
+  text: string;
+  audience: string;
+  time: string;
+}
 
 export default function AnnouncementsPage() {
   const { showToast } = useApp();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [audience, setAudience] = useState('all');
-  const [history, setHistory] = useState(HISTORY_INITIAL);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [publishing, setPublishing] = useState(false);
 
-  function publish() {
+  useEffect(() => {
+    fetch('/api/announcements')
+      .then(r => r.json())
+      .then((data: Array<{ id: string; title: string; audience: string; time: string }>) => {
+        if (Array.isArray(data)) {
+          setHistory(data.map(a => ({ id: a.id, icon: '📢', text: a.title, audience: a.audience, time: a.time })));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function publish() {
     if (!title.trim() || !body.trim()) { showToast('Add a title and a message before publishing'); return; }
+    setPublishing(true);
     const audienceLabel = AUDIENCE_OPTIONS.find(o => o.value === audience)?.label ?? audience;
-    setHistory(prev => [{ icon: '📢', text: title, audience: audienceLabel, time: 'just now' }, ...prev]);
-    setTitle('');
-    setBody('');
-    showToast(`Published to ${audienceLabel}`);
+    try {
+      const res = await fetch('/api/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, body, audience }),
+      });
+      if (!res.ok) throw new Error('Failed to publish');
+      setHistory(prev => [{ icon: '📢', text: title, audience: audienceLabel, time: 'just now' }, ...prev]);
+      setTitle('');
+      setBody('');
+      showToast(`Published to ${audienceLabel}`);
+      await logAudit({ type: 'account', action: `Published announcement: ${title}`, reason: `Audience: ${audienceLabel}` });
+    } catch {
+      showToast('Failed to publish — try again');
+    } finally {
+      setPublishing(false);
+    }
   }
 
   return (
@@ -75,8 +105,8 @@ export default function AnnouncementsPage() {
               ))}
             </div>
           </div>
-          <button className="btn-sm btn-impersonate" style={{ width: 'auto', padding: '0 20px' }} onClick={publish}>
-            Publish announcement
+          <button className="btn-sm btn-impersonate" style={{ width: 'auto', padding: '0 20px', opacity: publishing ? 0.6 : 1 }} onClick={publish} disabled={publishing}>
+            {publishing ? 'Publishing…' : 'Publish announcement'}
           </button>
         </div>
       </div>
@@ -86,15 +116,17 @@ export default function AnnouncementsPage() {
           <span className="zone-title">Published</span>
         </div>
         <div className="audit-feed">
-          {history.map((a, i) => (
-            <div key={i} className="audit-row">
-              <span className="ic">{a.icon}</span>
-              <span className="at-text">
-                {a.text} <span style={{ color: 'var(--text-3)' }}>· {a.audience}</span>
-              </span>
-              <span className="at-time">{a.time}</span>
-            </div>
-          ))}
+          {history.length === 0
+            ? <div className="audit-row" style={{ color: 'var(--text-3)' }}>No announcements yet.</div>
+            : history.map((a, i) => (
+              <div key={a.id ?? i} className="audit-row">
+                <span className="ic">{a.icon}</span>
+                <span className="at-text">
+                  {a.text} <span style={{ color: 'var(--text-3)' }}>· {a.audience}</span>
+                </span>
+                <span className="at-time">{a.time}</span>
+              </div>
+            ))}
         </div>
       </div>
     </div>

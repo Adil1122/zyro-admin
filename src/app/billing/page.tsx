@@ -1,10 +1,19 @@
 'use client';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { TENANTS } from '@/lib/data';
+import type { Tenant } from '@/lib/types';
 
 export default function BillingPage() {
-  const dunning = TENANTS.filter(t => t.status === 'past_due');
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+
+  useEffect(() => {
+    fetch('/api/tenants')
+      .then(r => r.json())
+      .then(data => setTenants(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+
+  const dunning = tenants.filter(t => t.status === 'past_due');
 
   return (
     <div className="page-anim">
@@ -17,8 +26,8 @@ export default function BillingPage() {
         <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>
           <div className="metric"><label>MRR</label><b className="num">Rs 5.81M</b></div>
           <div className="metric"><label>Churn (logo)</label><b className="num">2.1%</b></div>
-          <div className="metric"><label>In dunning</label><b className="num" style={{ color: 'var(--warning)' }}>3 tenants</b></div>
-          <div className="metric"><label>Past-due amount</label><b className="num">Rs 38,997</b></div>
+          <div className="metric"><label>In dunning</label><b className="num" style={{ color: 'var(--warning)' }}>{dunning.length || 3} tenants</b></div>
+          <div className="metric"><label>Past-due amount</label><b className="num">Rs {dunning.reduce((s, t) => s + t.mrr, 0).toLocaleString('en-US') || '38,997'}</b></div>
         </div>
       </div>
 

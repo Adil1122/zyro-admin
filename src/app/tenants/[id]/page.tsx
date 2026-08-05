@@ -1,8 +1,10 @@
 'use client';
-import React, { useState, use } from 'react';
+import React, { useState, use, useEffect } from 'react';
 import Link from 'next/link';
-import { TENANTS, maskPhone } from '@/lib/data';
+import { maskPhone } from '@/lib/data';
 import { useApp } from '@/lib/context';
+import { logAudit } from '@/lib/audit-client';
+import type { Tenant } from '@/lib/types';
 
 const TABS = ['overview', 'sales', 'marketing', 'whatsapp', 'inventory', 'couriers'] as const;
 type Tab = typeof TABS[number];
@@ -27,13 +29,36 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
   const [tab, setTab] = useState<Tab>('overview');
   const [phoneUnmasked, setPhoneUnmasked] = useState(false);
   const [emailUnmasked, setEmailUnmasked] = useState(false);
+  const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
-  const tenant = TENANTS.find(x => x.id === id);
-  if (!tenant) return <div className="page-head"><h1>Tenant not found</h1></div>;
+  useEffect(() => {
+    fetch(`/api/tenants/${id}`)
+      .then(r => { if (!r.ok) { setNotFound(true); return null; } return r.json(); })
+      .then(data => { if (data) setTenant(data); })
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return (
+    <div className="page-anim">
+      <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--text-3)' }}>Loading…</div>
+    </div>
+  );
+  if (notFound || !tenant) return (
+    <div className="page-anim">
+      <Link href="/tenants" className="back-link">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M10 3.5L5 8l5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        Back to tenants
+      </Link>
+      <div className="page-head"><h1>Tenant not found</h1></div>
+    </div>
+  );
+
   const t = tenant;
   const d = t.deepDive;
-  const maxWa = Math.max(...d.waTemplates.map(w => w.count), 1);
-  const maxShip = Math.max(...d.courierPerf.map(c => c.shipments), 1);
+  const maxWa = Math.max(...(d.waTemplates ?? []).map((w: { count: number }) => w.count), 1);
+  const maxShip = Math.max(...(d.courierPerf ?? []).map((c: { shipments: number }) => c.shipments), 1);
   const aov = d.orders30d > 0 ? Math.round(d.salesTotal / d.orders30d) : 0;
 
   const limits = PLAN_LIMITS[t.plan] ?? PLAN_LIMITS['Growth'];
@@ -44,8 +69,11 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
   const waPct = Math.round((waUsed / limits.wa) * 100);
   const aiPct = Math.round((aiUsed / limits.ai) * 100);
 
-  function requireReason(title: string, sub: string, msg: string) {
-    openReasonModal(title, sub, () => showToast(msg));
+  function requireReason(auditAction: string, title: string, sub: string, toastMsg: string) {
+    openReasonModal(title, sub, async (reason: string) => {
+      showToast(toastMsg);
+      await logAudit({ type: 'account', action: auditAction, tenant: t.name, reason });
+    });
   }
 
   function handleImpersonate() {
@@ -73,8 +101,8 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
           </div>
         </div>
         <div className="detail-actions">
-          <button className="btn-sm" onClick={() => requireReason('Extend trial', `Extending ${t.name}'s trial. This is logged to the admin audit trail with your name and the reason below.`, `Trial extended for ${t.name}`)}>Extend trial</button>
-          <button className="btn-sm" onClick={() => requireReason('Issue credit', `Issuing a credit to ${t.name}. This is logged to the admin audit trail.`, `Credit issued to ${t.name}`)}>Issue credit</button>
+          <button className="btn-sm" onClick={() => requireReason(`Extended trial for ${t.name}`, 'Extend trial', `Extending ${t.name}'s trial. This is logged to the admin audit trail with your name and the reason below.`, `Trial extended for ${t.name}`)}>Extend trial</button>
+          <button className="btn-sm" onClick={() => requireReason(`Issued credit to ${t.name}`, 'Issue credit', `Issuing a credit to ${t.name}. This is logged to the admin audit trail.`, `Credit issued to ${t.name}`)}>Issue credit</button>
           <button className="btn-sm btn-impersonate" onClick={handleImpersonate}>
             <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
               <path d="M10 2.5l7.5 4v7l-7.5 4-7.5-4v-7z" stroke="#fff" strokeWidth="1.6" strokeLinejoin="round"/>
@@ -104,7 +132,14 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
                   <label>Phone</label>
                   <div className="val">
                     <span>{phoneUnmasked ? t.phone : maskPhone(t.phone)}</span>
-                    <button className="unmask-btn" onClick={() => { setPhoneUnmasked(v => !v); if (!phoneUnmasked) showToast('Phone unmasked — logged to audit trail'); }}>
+                    <button className="unmask-btn" onClick={async () => {
+                      const willUnmask = !phoneUnmasked;
+                      setPhoneUnmasked(v => !v);
+                      if (willUnmask) {
+                        showToast('Phone unmasked — logged to audit trail');
+                        await logAudit({ type: 'pii', action: 'Unmasked phone number', tenant: t.name });
+                      }
+                    }}>
                       {phoneUnmasked ? 'Mask' : 'Unmask'}
                     </button>
                   </div>
@@ -113,7 +148,14 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
                   <label>Email</label>
                   <div className="val">
                     <span>{emailUnmasked ? t.email : '[REDACTED]'}</span>
-                    <button className="unmask-btn" onClick={() => { setEmailUnmasked(v => !v); if (!emailUnmasked) showToast('Email unmasked — logged to audit trail'); }}>
+                    <button className="unmask-btn" onClick={async () => {
+                      const willUnmask = !emailUnmasked;
+                      setEmailUnmasked(v => !v);
+                      if (willUnmask) {
+                        showToast('Email unmasked — logged to audit trail');
+                        await logAudit({ type: 'pii', action: 'Unmasked email address', tenant: t.name });
+                      }
+                    }}>
                       {emailUnmasked ? 'Mask' : 'Unmask'}
                     </button>
                   </div>
@@ -148,7 +190,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
             <div className="zone">
               <div className="zone-head"><span className="zone-title">Connected integrations</span></div>
               <div className="card" style={{ padding: '16px 20px', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                {t.integrations.map(i => <span key={i} className="status-pill active" style={{ background: 'var(--card-2)', color: 'var(--text-2)' }}>{i}</span>)}
+                {(t.integrations ?? []).map((i: string) => <span key={i} className="status-pill active" style={{ background: 'var(--card-2)', color: 'var(--text-2)' }}>{i}</span>)}
               </div>
             </div>
           </div>
@@ -161,7 +203,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
               </div>
               <div className="card" style={{ padding: '16px 20px' }}>
                 <div className="health-breakdown">
-                  {t.breakdown.map(([label, weight, pct]) => (
+                  {(t.breakdown ?? []).map(([label, weight, pct]: [string, number, number]) => (
                     <div key={label} className="hb-row">
                       <span className="hb-label">{label}</span>
                       <div className="hb-bar">
@@ -178,8 +220,8 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
               <div className="zone-head"><span className="zone-title">Manual actions</span></div>
               <div className="card" style={{ padding: 14 }}>
                 <div className="manual-actions">
-                  <button className="btn-sm" onClick={() => requireReason('Suspend account', `Suspending ${t.name} — they will lose access immediately. This is logged to the admin audit trail.`, `${t.name} suspended`)}>Suspend account</button>
-                  <button className="btn-sm btn-danger-outline" onClick={() => requireReason('Start deletion flow', `Starts the 90-day soft-delete window for ${t.name}, per the tenant deletion policy — this does not delete anything immediately.`, `Deletion flow started for ${t.name}`)}>Start deletion flow</button>
+                  <button className="btn-sm" onClick={() => requireReason(`Suspended account: ${t.name}`, 'Suspend account', `Suspending ${t.name} — they will lose access immediately. This is logged to the admin audit trail.`, `${t.name} suspended`)}>Suspend account</button>
+                  <button className="btn-sm btn-danger-outline" onClick={() => requireReason(`Started deletion flow for ${t.name}`, 'Start deletion flow', `Starts the 90-day soft-delete window for ${t.name}, per the tenant deletion policy — this does not delete anything immediately.`, `Deletion flow started for ${t.name}`)}>Start deletion flow</button>
                 </div>
               </div>
             </div>
@@ -194,12 +236,12 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
           <div className="mini-metric"><label>Revenue (30d)</label><b className="num">Rs {d.salesTotal.toLocaleString('en-US')}</b></div>
           <div className="mini-metric"><label>Orders (30d)</label><b className="num">{d.orders30d}</b></div>
           <div className="mini-metric"><label>Avg. order value</label><b className="num">Rs {aov.toLocaleString('en-US')}</b></div>
-          <div className="mini-metric"><label>Top product</label><b>{d.products[0]?.name ?? '—'}</b></div>
+          <div className="mini-metric"><label>Top product</label><b>{d.products?.[0]?.name ?? '—'}</b></div>
         </div>
         <div className="zone">
           <div className="zone-head"><span className="zone-title">Top-selling products</span><span className="zone-sub">Last 30 days</span></div>
           <div className="card" style={{ padding: '16px 20px' }}>
-            {d.products.map((p, i) => (
+            {(d.products ?? []).map((p: { name: string; unitsSold: number; revenue: number }, i: number) => (
               <div key={p.name} className="product-row">
                 <span className="product-rank">{i + 1}</span>
                 <div className="product-info"><div className="p-name">{p.name}</div><div className="p-sub">{p.unitsSold} units sold</div></div>
@@ -216,13 +258,13 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
         <div className="mini-metric-grid">
           <div className="mini-metric"><label>Ad spend (30d)</label><b className="num">Rs {d.adSpend.toLocaleString('en-US')}</b></div>
           <div className="mini-metric"><label>Blended ROAS</label><b className="num" style={{ color: 'var(--accent-light)' }}>{d.blendedRoas}x</b></div>
-          <div className="mini-metric"><label>Active campaigns</label><b className="num">{d.campaigns.length}</b></div>
-          <div className="mini-metric"><label>Best performer</label><b>{d.campaigns[0] ? `${d.campaigns[0].roas}x` : '—'}</b><span className="note">{d.campaigns[0]?.name ?? ''}</span></div>
+          <div className="mini-metric"><label>Active campaigns</label><b className="num">{(d.campaigns ?? []).length}</b></div>
+          <div className="mini-metric"><label>Best performer</label><b>{d.campaigns?.[0] ? `${d.campaigns[0].roas}x` : '—'}</b><span className="note">{d.campaigns?.[0]?.name ?? ''}</span></div>
         </div>
         <div className="zone">
           <div className="zone-head"><span className="zone-title">Campaigns</span><span className="zone-sub">Live Meta/Google/TikTok spend — same computed Scale/Monitor/Review logic as the merchant sees</span></div>
           <div className="card" style={{ padding: '16px 20px' }}>
-            {d.campaigns.map(c => (
+            {(d.campaigns ?? []).map((c: { name: string; spend: number; roas: number; status: string }) => (
               <div key={c.name} className="product-row">
                 <div className="product-info"><div className="p-name">{c.name}</div><div className="p-sub">Rs {c.spend.toLocaleString('en-US')} spent</div></div>
                 <span className={`mini-pill ${c.status}`}>{c.status === 'scale' ? 'Scale' : c.status === 'monitor' ? 'Monitor' : 'Review'} · {c.roas}x</span>
@@ -244,7 +286,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
         <div className="zone">
           <div className="zone-head"><span className="zone-title">Message templates in use</span><span className="zone-sub">By volume, last 30 days</span></div>
           <div className="card" style={{ padding: '16px 20px' }}>
-            {d.waTemplates.map(w => (
+            {(d.waTemplates ?? []).map((w: { name: string; count: number }) => (
               <div key={w.name} className="whatsapp-template-row">
                 <span style={{ width: 170, flexShrink: 0 }}>{w.name}</span>
                 <div className="wt-bar"><span style={{ width: `${(w.count / maxWa * 100).toFixed(0)}%` }} /></div>
@@ -261,15 +303,15 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
         <div className="mini-metric-grid">
           <div className="mini-metric"><label>Total SKUs</label><b className="num">{d.totalSkus}</b></div>
           <div className="mini-metric"><label>Stock value</label><b className="num">Rs {d.stockValue.toLocaleString('en-US')}</b></div>
-          <div className="mini-metric"><label>Low stock items</label><b className="num" style={{ color: d.lowStock.length > 0 ? 'var(--warning)' : 'var(--accent-light)' }}>{d.lowStock.length}</b></div>
+          <div className="mini-metric"><label>Low stock items</label><b className="num" style={{ color: (d.lowStock ?? []).length > 0 ? 'var(--warning)' : 'var(--accent-light)' }}>{(d.lowStock ?? []).length}</b></div>
           <div className="mini-metric"><label>Dead stock items</label><b className="num">{d.deadStockCount}</b></div>
         </div>
         <div className="zone">
           <div className="zone-head"><span className="zone-title">Low stock</span><span className="zone-sub">Below reorder point</span></div>
           <div className="card" style={{ padding: '16px 20px' }}>
-            {d.lowStock.length === 0
+            {(d.lowStock ?? []).length === 0
               ? <div style={{ padding: '12px 0', color: 'var(--text-3)', fontSize: 12.5 }}>Nothing below reorder point right now.</div>
-              : d.lowStock.map(item => (
+              : (d.lowStock ?? []).map((item: { name: string; current: number; reorderPoint: number }) => (
                 <div key={item.name} className="product-row">
                   <div className="product-info"><div className="p-name">{item.name}</div><div className="p-sub">Reorder point: {item.reorderPoint} units</div></div>
                   <span className="mini-pill review">{item.current} left</span>
@@ -285,22 +327,17 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
         <div className="zone">
           <div className="zone-head"><span className="zone-title">Courier performance for this store</span><span className="zone-sub">Feeds the comparative data behind our own courier build</span></div>
           <div className="card track-scroll" style={{ padding: '6px 8px' }}>
-            {d.courierPerf.length === 0
+            {(d.courierPerf ?? []).length === 0
               ? <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-3)' }}>Not enough shipment volume yet for courier performance data.</div>
               : (
                 <table className="compare-table">
                   <thead>
                     <tr>
-                      <th>Courier</th>
-                      <th>Shipments (30d)</th>
-                      <th>Success rate</th>
-                      <th>RTO rate</th>
-                      <th>Avg cost</th>
-                      <th>Avg delivery</th>
+                      <th>Courier</th><th>Shipments (30d)</th><th>Success rate</th><th>RTO rate</th><th>Avg cost</th><th>Avg delivery</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {d.courierPerf.map(c => (
+                    {(d.courierPerf ?? []).map((c: { courier: string; shipments: number; successRate: number; rtoRate: number; avgCost: number; avgDays: string }) => (
                       <tr key={c.courier}>
                         <td style={{ fontWeight: 700 }}>{c.courier}</td>
                         <td className="num">

@@ -1,43 +1,69 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context';
+import { logAudit } from '@/lib/audit-client';
 
-const INITIAL_KILL_SWITCHES = [
-  { name: 'kill-platform-whatsapp-outbound', desc: 'Emergency stop — pauses all outbound WhatsApp sends, every tenant, immediately', owner: 'Anes Khan', on: true },
-  { name: 'kill-platform-courier-autobooking', desc: 'Emergency stop — pauses all automatic courier booking platform-wide', owner: 'Anes Khan', on: true },
-  { name: 'kill-platform-ai-order-from-chat', desc: 'Forces AI order-from-chat into shadow mode for every tenant, no auto-orders placed', owner: 'Anes Khan', on: true },
-];
-
-const FEATURE_FLAGS = [
-  { name: 'release-whatsapp-order-from-chat-v2', desc: 'Improved intent classification for order-from-chat WhatsApp flow', owner: 'Hamza Ops', rollout: 35 },
-  { name: 'release-couriers-scoring-12signal', desc: 'Full 12-signal AI courier scoring (vs. legacy 4-signal)', owner: 'Anes Khan', rollout: 100 },
-  { name: 'release-finance-fbr-autoexport', desc: 'Automatic monthly FBR export for registered tenants', owner: 'Fatima Support Lead', rollout: 80 },
-  { name: 'release-finance-profitcalc-v2', desc: 'Redesigned profit calculator with COD-fee breakdown', owner: 'Hamza Ops', rollout: 15 },
-  { name: 'release-inventory-multiwarehouse-routing', desc: 'Route orders to nearest warehouse automatically', owner: 'Anes Khan', rollout: 60 },
-  { name: 'release-whatsapp-sms-fallback', desc: 'SMS delivery for the ~20% of customers without WhatsApp', owner: 'Fatima Support Lead', rollout: 100 },
-];
+interface Flag {
+  name: string;
+  flag_type: 'kill' | 'rollout';
+  description: string;
+  owner: string;
+  enabled: boolean;
+  rollout: number;
+}
 
 export default function FlagsPage() {
   const { openReasonModal, showToast } = useApp();
-  const [killSwitches, setKillSwitches] = useState(INITIAL_KILL_SWITCHES);
-  const [rollouts, setRollouts] = useState(() => FEATURE_FLAGS.map(f => f.rollout));
+  const [flags, setFlags] = useState<Flag[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  function toggleKill(idx: number) {
-    const k = killSwitches[idx];
-    if (k.on) {
+  useEffect(() => {
+    fetch('/api/flags')
+      .then(r => r.json())
+      .then(data => setFlags(Array.isArray(data) ? data : []))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const killSwitches = flags.filter(f => f.flag_type === 'kill');
+  const rolloutFlags = flags.filter(f => f.flag_type === 'rollout');
+
+  function toggleKill(name: string) {
+    const k = flags.find(f => f.name === name)!;
+    if (k.enabled) {
       openReasonModal(
         `Disable ${k.name}?`,
-        `This pauses "${k.desc.toLowerCase()}" for every tenant on the platform, not just one.`,
-        () => {
-          setKillSwitches(prev => prev.map((s, i) => i === idx ? { ...s, on: false } : s));
-          showToast(`${k.name} disabled platform-wide`);
+        `This pauses "${k.description.toLowerCase()}" for every tenant on the platform, not just one.`,
+        async (reason: string) => {
+          await fetch('/api/flags', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, enabled: false }) });
+          setFlags(prev => prev.map(f => f.name === name ? { ...f, enabled: false } : f));
+          showToast(`${name} disabled platform-wide`);
+          await logAudit({ type: 'account', action: `Disabled kill switch: ${name}`, reason });
         }
       );
     } else {
-      setKillSwitches(prev => prev.map((s, i) => i === idx ? { ...s, on: true } : s));
-      showToast(`${k.name} re-enabled`);
+      fetch('/api/flags', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, enabled: true }) });
+      setFlags(prev => prev.map(f => f.name === name ? { ...f, enabled: true } : f));
+      showToast(`${name} re-enabled`);
+      logAudit({ type: 'account', action: `Re-enabled kill switch: ${name}` });
     }
   }
+
+  function updateRollout(name: string, rollout: number) {
+    fetch('/api/flags', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, rollout }) });
+    setFlags(prev => prev.map(f => f.name === name ? { ...f, rollout } : f));
+    showToast(`${name} rollout set to ${rollout}%`);
+    logAudit({ type: 'account', action: `Set rollout for ${name} to ${rollout}%` });
+  }
+
+  if (loading) return (
+    <div className="page-anim">
+      <div className="page-head"><h1>Feature Flags</h1><div className="page-sub">Kill switches for emergencies, gradual rollout for everything else — different risk profiles, different controls</div></div>
+      <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-3)' }}>Loading…</div>
+    </div>
+  );
 
   return (
     <div className="page-anim">
@@ -60,13 +86,13 @@ export default function FlagsPage() {
             >
               <div className="sw-text">
                 <div className="sw-title" style={{ fontFamily: 'monospace', fontSize: 12 }}>{k.name}</div>
-                <div className="sw-sub">{k.desc} · Owner: {k.owner}</div>
+                <div className="sw-sub">{k.description} · Owner: {k.owner}</div>
               </div>
               <button
-                className={`switch${k.on ? ' on' : ''}`}
+                className={`switch${k.enabled ? ' on' : ''}`}
                 role="switch"
-                aria-checked={k.on}
-                onClick={() => toggleKill(i)}
+                aria-checked={k.enabled}
+                onClick={() => toggleKill(k.name)}
               >
                 <span className="knob" />
               </button>
@@ -81,7 +107,7 @@ export default function FlagsPage() {
           <span className="zone-sub">Gradual percentage rollout, never 0% to 100% in one step</span>
         </div>
         <div className="card" style={{ padding: 4 }}>
-          {FEATURE_FLAGS.map((f, i) => (
+          {rolloutFlags.map((f, i) => (
             <div
               key={f.name}
               className="switch-row"
@@ -89,20 +115,20 @@ export default function FlagsPage() {
             >
               <div className="sw-text">
                 <div className="sw-title" style={{ fontFamily: 'monospace', fontSize: 12.5 }}>{f.name}</div>
-                <div className="sw-sub">{f.desc} · Owner: {f.owner}</div>
+                <div className="sw-sub">{f.description} · Owner: {f.owner}</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                 <input
                   type="range"
                   min={0}
                   max={100}
-                  value={rollouts[i]}
-                  onChange={e => setRollouts(prev => prev.map((v, j) => j === i ? parseInt(e.target.value) : v))}
-                  onMouseUp={e => showToast(`${f.name} rollout set to ${(e.target as HTMLInputElement).value}%`)}
+                  value={f.rollout}
+                  onChange={e => setFlags(prev => prev.map(x => x.name === f.name ? { ...x, rollout: parseInt(e.target.value) } : x))}
+                  onMouseUp={e => updateRollout(f.name, parseInt((e.target as HTMLInputElement).value))}
                   style={{ width: 100, accentColor: 'var(--accent)' }}
                 />
                 <span className="num" style={{ fontSize: 12, fontWeight: 700, width: 36, textAlign: 'right' }}>
-                  {rollouts[i]}%
+                  {f.rollout}%
                 </span>
               </div>
             </div>

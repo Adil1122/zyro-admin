@@ -1,7 +1,7 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { TENANTS } from '@/lib/data';
+import type { Tenant } from '@/lib/types';
 
 type SortKey = 'name' | 'plan' | 'mrr' | 'status' | 'health' | 'orders30d';
 type HealthFilter = 'all' | 'healthy' | 'watch' | 'atrisk' | 'critical';
@@ -23,6 +23,8 @@ function SkeletonRow() {
 }
 
 export default function TenantsPage() {
+  const [allTenants, setAllTenants] = useState<Tenant[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [healthFilter, setHealthFilter] = useState<HealthFilter>('all');
   const [searchQ, setSearchQ] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('mrr');
@@ -32,8 +34,15 @@ export default function TenantsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showSkeleton, setShowSkeleton] = useState(false);
 
+  useEffect(() => {
+    fetch('/api/tenants')
+      .then(r => r.json())
+      .then(data => setAllTenants(Array.isArray(data) ? data : []))
+      .finally(() => setInitialLoading(false));
+  }, []);
+
   const filtered = useMemo(() => {
-    let list = TENANTS.filter(t => healthFilter === 'all' || t.band === healthFilter);
+    let list = allTenants.filter(t => healthFilter === 'all' || t.band === healthFilter);
     if (searchQ) {
       const q = searchQ.toLowerCase();
       list = list.filter(t => t.name.toLowerCase().includes(q) || t.owner.toLowerCase().includes(q) || t.phone.includes(q));
@@ -47,7 +56,7 @@ export default function TenantsPage() {
       return 0;
     });
     return list;
-  }, [healthFilter, searchQ, sortKey, sortDir]);
+  }, [allTenants, healthFilter, searchQ, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -122,7 +131,7 @@ export default function TenantsPage() {
         </div>
 
         <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginBottom: 10 }}>
-          Showing {filtered.length} of {TENANTS.length} tenants
+          {initialLoading ? 'Loading tenants…' : `Showing ${filtered.length} of ${allTenants.length} tenants`}
         </div>
 
         <div className="card track-scroll">
@@ -145,7 +154,7 @@ export default function TenantsPage() {
               </tr>
             </thead>
             <tbody>
-              {showSkeleton
+              {(initialLoading || showSkeleton)
                 ? SKELETON_ROWS.map((_, i) => <SkeletonRow key={i} />)
                 : pageItems.length === 0
                 ? <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)' }}>No tenants match this search or filter</td></tr>
