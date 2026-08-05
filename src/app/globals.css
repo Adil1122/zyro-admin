@@ -166,8 +166,27 @@ body.impersonating .app-shell{ padding-top:44px; }
 .logo-text{ font-size:16px; font-weight:800; letter-spacing:-0.02em; color:var(--text); }
 .nav{ display:flex; flex-direction:column; gap:1px; flex:1; }
 .nav-section-label{
-  font-size:10px; font-weight:700; color:var(--text-3);
-  text-transform:uppercase; letter-spacing:0.07em; padding:16px 10px 6px;
+  font-size:10px; font-weight:800;
+  color:rgba(126,242,192,0.55);
+  text-transform:uppercase; letter-spacing:0.10em;
+  padding:6px 10px;
+  margin-top:18px; margin-bottom:2px;
+  border-top:1px solid rgba(255,255,255,0.07);
+  display:flex; align-items:center; gap:7px;
+}
+.nav-section-label::before{
+  content:'';
+  display:block;
+  width:14px; height:1.5px;
+  background:linear-gradient(90deg, var(--accent), transparent);
+  border-radius:2px;
+  flex-shrink:0;
+  opacity:0.7;
+}
+.nav .nav-section-label:first-child{
+  margin-top:0;
+  border-top:none;
+  padding-top:0;
 }
 .nav-item{
   display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px;
