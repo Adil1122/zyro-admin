@@ -45,7 +45,13 @@ export default function ReasonModal() {
         </div>
         <div className="modal-actions">
           <button className="btn-sm" onClick={closeReasonModal}>Cancel</button>
-          <button className="btn-sm btn-impersonate" onClick={() => confirmReasonModal(reason)}>Confirm</button>
+          <button
+            className="btn-sm btn-impersonate"
+            disabled={!reason.trim()}
+            onClick={() => confirmReasonModal(reason)}
+          >
+            Confirm
+          </button>
         </div>
       </div>
     </div>

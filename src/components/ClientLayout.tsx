@@ -16,6 +16,18 @@ function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [cmdkOpen, setCmdkOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [dunningCount, setDunningCount] = useState(0);
+
+  useEffect(() => {
+    fetch('/api/tenants')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setDunningCount(data.filter((t: { status: string }) => t.status === 'past_due').length);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!isLoggedIn) router.replace('/login');
@@ -51,7 +63,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
         {drawerOpen && (
           <div className="drawer-backdrop show" onClick={() => setDrawerOpen(false)} />
         )}
-        <Sidebar drawerOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
+        <Sidebar drawerOpen={drawerOpen} onClose={() => setDrawerOpen(false)} dunningCount={dunningCount} />
         <div className="main">
           <Topbar onHamburger={() => setDrawerOpen(true)} onCmdK={openCmdk} />
           <div className="content">{children}</div>

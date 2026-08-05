@@ -1,7 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { TENANTS } from '@/lib/data';
 import type { Tenant } from '@/lib/types';
 
 const NAV_ITEMS = [
@@ -25,7 +24,17 @@ interface Props { open: boolean; onClose: () => void; }
 export default function CommandPalette({ open, onClose }: Props) {
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
   const router = useRouter();
+
+  useEffect(() => {
+    if (open && tenants.length === 0) {
+      fetch('/api/tenants')
+        .then(r => r.json())
+        .then(data => setTenants(Array.isArray(data) ? data : []))
+        .catch(() => {});
+    }
+  }, [open, tenants.length]);
 
   const items: CmdItem[] = (() => {
     const q = query.trim().toLowerCase();
@@ -33,7 +42,7 @@ export default function CommandPalette({ open, onClose }: Props) {
       ? NAV_ITEMS.filter(n => n.label.toLowerCase().includes(q))
       : NAV_ITEMS;
     const tenantMatches = q
-      ? TENANTS.filter(t => t.name.toLowerCase().includes(q) || t.owner.toLowerCase().includes(q) || t.phone.includes(q)).slice(0, 8)
+      ? tenants.filter(t => t.name.toLowerCase().includes(q) || t.owner.toLowerCase().includes(q) || t.phone.includes(q)).slice(0, 8)
       : [];
     return [
       ...navMatches.map(n => ({ type: 'nav' as const, ...n })),

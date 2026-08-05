@@ -3,11 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context';
 import { logAudit } from '@/lib/audit-client';
 
-const AUDIENCE_OPTIONS = [
-  { label: 'All tenants (742)', value: 'all' },
-  { label: 'At-risk only', value: 'atrisk' },
-  { label: 'Pro plan only', value: 'pro' },
-];
+function audienceOptions(total: number) {
+  return [
+    { label: total > 0 ? `All tenants (${total})` : 'All tenants', value: 'all' },
+    { label: 'At-risk only', value: 'atrisk' },
+    { label: 'Pro plan only', value: 'pro' },
+  ];
+}
 
 interface HistoryEntry {
   id?: string;
@@ -24,8 +26,13 @@ export default function AnnouncementsPage() {
   const [audience, setAudience] = useState('all');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [publishing, setPublishing] = useState(false);
+  const [tenantCount, setTenantCount] = useState(0);
 
   useEffect(() => {
+    fetch('/api/tenants')
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setTenantCount(data.length); })
+      .catch(() => {});
     fetch('/api/announcements')
       .then(r => r.json())
       .then((data: Array<{ id: string; title: string; audience: string; time: string }>) => {
@@ -39,7 +46,7 @@ export default function AnnouncementsPage() {
   async function publish() {
     if (!title.trim() || !body.trim()) { showToast('Add a title and a message before publishing'); return; }
     setPublishing(true);
-    const audienceLabel = AUDIENCE_OPTIONS.find(o => o.value === audience)?.label ?? audience;
+    const audienceLabel = audienceOptions(tenantCount).find(o => o.value === audience)?.label ?? audience;
     try {
       const res = await fetch('/api/announcements', {
         method: 'POST',
@@ -94,7 +101,7 @@ export default function AnnouncementsPage() {
           <div className="field" style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 7 }}>Audience</label>
             <div className="toggle-row">
-              {AUDIENCE_OPTIONS.map(opt => (
+              {audienceOptions(tenantCount).map(opt => (
                 <button
                   key={opt.value}
                   className={`toggle-chip${audience === opt.value ? ' on' : ''}`}
