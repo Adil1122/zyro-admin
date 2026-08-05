@@ -1,24 +1,64 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '@/lib/context';
 import type { Tenant } from '@/lib/types';
 
-const APPEALS = [
-  { phone: '+9230xxxx1122', tenant: "Sana's Boutique", reason: 'Customer says courier marked RTO but they never received a delivery attempt' },
-  { phone: '+9230xxxx7788', tenant: 'Lahore Kicks', reason: 'Flagged after 2 refused deliveries — customer says wrong address on file, now corrected' },
-  { phone: '+9230xxxx4411', tenant: 'Glow Cosmetics', reason: 'Blocked for suspected fake return, customer disputes and has photo proof of unopened package' },
-];
+interface Appeal {
+  id: string;
+  phone: string;
+  tenant: string;
+  reason: string;
+  status: string;
+}
 
 export default function RiskPage() {
   const { showToast } = useApp();
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [appeals, setAppeals] = useState<Appeal[]>([]);
+  const [stats, setStats] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+  const [actioning, setActioning] = useState<string | null>(null);
+
+  const loadAppeals = useCallback(() => {
+    fetch('/api/risk/appeals')
+      .then(r => r.json())
+      .then(data => setAppeals(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch('/api/tenants')
       .then(r => r.json())
-      .then(data => setTenants(Array.isArray(data) ? data : []))
+      .then(data => { setTenants(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
+    fetch('/api/risk/stats')
+      .then(r => r.json())
+      .then(data => setStats(typeof data === 'object' ? data : {}))
       .catch(() => {});
-  }, []);
+    loadAppeals();
+  }, [loadAppeals]);
+
+  async function handleAppeal(id: string, status: 'approved' | 'denied') {
+    setActioning(id);
+    try {
+      const res = await fetch(`/api/risk/appeals/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error();
+      showToast(status === 'approved' ? 'Appeal approved — risk score cleared' : 'Appeal denied — flag stands');
+      setAppeals(prev => prev.filter(a => a.id !== id));
+    } catch {
+      showToast('Failed to update appeal — try again');
+    } finally {
+      setActioning(null);
+    }
+  }
+
+  const rtoOptInRate = tenants.length > 0
+    ? Math.round(tenants.reduce((sum, t) => sum + (t.deepDive?.optInRate ?? 0), 0) / tenants.length)
+    : 0;
 
   const nearThreshold = tenants.filter(t => {
     const annual = (t.deepDive?.salesTotal ?? 0) * 12;
@@ -34,10 +74,26 @@ export default function RiskPage() {
 
       <div className="zone">
         <div className="mini-metric-grid" style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>
-          <div className="mini-metric"><label>RTO intel opt-in rate</label><b className="num">78%</b><span className="note">Of tenants</span></div>
-          <div className="mini-metric"><label>Pending appeals</label><b className="num" style={{ color: 'var(--warning)' }}>3</b></div>
-          <div className="mini-metric"><label>Blocklisted numbers</label><b className="num">142</b></div>
-          <div className="mini-metric"><label>Unregistered (no NTN)</label><b className="num">18</b><span className="note">Below FBR threshold</span></div>
+          <div className="mini-metric">
+            <label>RTO intel opt-in rate</label>
+            <b className="num">{loading ? '—' : `${rtoOptInRate}%`}</b>
+            <span className="note">Avg across all tenants</span>
+          </div>
+          <div className="mini-metric">
+            <label>Pending appeals</label>
+            <b className="num" style={{ color: appeals.length > 0 ? 'var(--warning)' : 'var(--accent)' }}>
+              {appeals.length}
+            </b>
+          </div>
+          <div className="mini-metric">
+            <label>Blocklisted numbers</label>
+            <b className="num">{stats.blocklist_count ?? '—'}</b>
+          </div>
+          <div className="mini-metric">
+            <label>Unregistered (no NTN)</label>
+            <b className="num">{stats.unregistered_count ?? '—'}</b>
+            <span className="note">Below FBR threshold</span>
+          </div>
         </div>
       </div>
 
@@ -47,15 +103,35 @@ export default function RiskPage() {
           <span className="zone-sub">A wrongly blocked genuine customer is real harm — these need review, not auto-resolution</span>
         </div>
         <div className="risk-list">
-          {APPEALS.map((a, i) => (
-            <div key={i} className="risk-row" style={{ cursor: 'default' }}>
+          {appeals.length === 0 ? (
+            <div className="risk-row" style={{ cursor: 'default' }}>
+              <div className="risk-row-info">
+                <div className="rn-sub" style={{ color: 'var(--accent)' }}>No pending appeals — queue is clear.</div>
+              </div>
+            </div>
+          ) : appeals.map(a => (
+            <div key={a.id} className="risk-row" style={{ cursor: 'default' }}>
               <div className="risk-score-badge atrisk" style={{ fontSize: 10 }}>?</div>
               <div className="risk-row-info">
                 <div className="rn-name">{a.phone} · {a.tenant}</div>
                 <div className="rn-sub">{a.reason}</div>
               </div>
-              <button className="btn-sm" style={{ height: 30, padding: '0 10px', fontSize: 11 }} onClick={() => showToast('Appeal approved — risk score cleared')}>Approve</button>
-              <button className="btn-sm btn-danger-outline" style={{ height: 30, padding: '0 10px', fontSize: 11 }} onClick={() => showToast('Appeal denied — flag stands')}>Deny</button>
+              <button
+                className="btn-sm"
+                style={{ height: 30, padding: '0 10px', fontSize: 11 }}
+                disabled={actioning === a.id}
+                onClick={() => handleAppeal(a.id, 'approved')}
+              >
+                Approve
+              </button>
+              <button
+                className="btn-sm btn-danger-outline"
+                style={{ height: 30, padding: '0 10px', fontSize: 11 }}
+                disabled={actioning === a.id}
+                onClick={() => handleAppeal(a.id, 'denied')}
+              >
+                Deny
+              </button>
             </div>
           ))}
         </div>

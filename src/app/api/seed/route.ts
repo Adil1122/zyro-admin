@@ -54,5 +54,24 @@ export async function POST() {
   const { error: ce } = await sb.from('courier_health').upsert(courierRows, { onConflict: 'name' });
   if (ce) return NextResponse.json({ error: ce.message }, { status: 500 });
 
-  return NextResponse.json({ seeded: { tenants: tenantRows.length, flags: FLAGS.length, couriers: courierRows.length } });
+  const APPEALS = [
+    { phone: '+9230xxxx1122', tenant: "Sana's Boutique", reason: 'Customer says courier marked RTO but they never received a delivery attempt', status: 'pending' },
+    { phone: '+9230xxxx7788', tenant: 'Lahore Kicks', reason: 'Flagged after 2 refused deliveries — customer says wrong address on file, now corrected', status: 'pending' },
+    { phone: '+9230xxxx4411', tenant: 'Glow Cosmetics', reason: 'Blocked for suspected fake return, customer disputes and has photo proof of unopened package', status: 'pending' },
+  ];
+  // Only insert if no appeals exist yet (don't duplicate on re-seed)
+  const { count } = await sb.from('risk_appeals').select('*', { count: 'exact', head: true });
+  if (!count) {
+    const { error: ae } = await sb.from('risk_appeals').insert(APPEALS);
+    if (ae) return NextResponse.json({ error: ae.message }, { status: 500 });
+  }
+
+  const STATS = [
+    { key: 'blocklist_count', value: 142 },
+    { key: 'unregistered_count', value: 18 },
+  ];
+  const { error: se } = await sb.from('platform_stats').upsert(STATS, { onConflict: 'key' });
+  if (se) return NextResponse.json({ error: se.message }, { status: 500 });
+
+  return NextResponse.json({ seeded: { tenants: tenantRows.length, flags: FLAGS.length, couriers: courierRows.length, appeals: APPEALS.length, stats: STATS.length } });
 }

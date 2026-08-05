@@ -48,6 +48,23 @@ create table if not exists feature_flags (
   updated_at timestamptz default now()
 );
 
+-- Risk: fake-return appeal queue
+create table if not exists risk_appeals (
+  id uuid primary key default gen_random_uuid(),
+  phone text not null,
+  tenant text not null,
+  reason text not null,
+  status text not null default 'pending',  -- 'pending' | 'approved' | 'denied'
+  created_at timestamptz default now()
+);
+
+-- Platform-level stats (blocklist count, unregistered count, etc.)
+create table if not exists platform_stats (
+  key text primary key,
+  value integer not null default 0,
+  updated_at timestamptz default now()
+);
+
 -- Courier health
 create table if not exists courier_health (
   id uuid primary key default gen_random_uuid(),
