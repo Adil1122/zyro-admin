@@ -830,6 +830,66 @@ body.impersonating .app-shell{ padding-top:44px; }
   .hamburger-btn{ display:flex; }
   .content{ padding:18px; }
   .metric-grid{ grid-template-columns:repeat(2,1fr); }
+  .mini-metric-grid{ grid-template-columns:repeat(2,1fr); }
   .detail-grid{ grid-template-columns:1fr; }
   .topbar-search{ display:none; }
+  .detail-actions{ flex-wrap:wrap; }
+  .bulk-bar{ flex-wrap:wrap; }
+  .bulk-bar .bulk-actions{ flex-wrap:wrap; margin-left:0; }
+  .table-controls{ gap:6px; }
+  .search-box input{ width:160px; }
+}
+
+@media (max-width:480px){
+  .content{ padding:14px 14px 48px; }
+  .page-head{ margin-bottom:18px; }
+  .page-head h1{ font-size:19px; }
+
+  /* metric grids → single column on phones */
+  .metric-grid{ grid-template-columns:1fr; }
+  .mini-metric-grid{ grid-template-columns:repeat(2,1fr); }
+
+  /* detail head stacks vertically */
+  .detail-head{ flex-direction:column; align-items:flex-start; gap:12px; }
+  .detail-actions{ width:100%; }
+  .detail-actions .btn-sm{ flex:1; justify-content:center; }
+  .detail-name{ font-size:17px; }
+
+  /* manual actions stack */
+  .manual-actions{ display:flex; flex-direction:column; gap:8px; }
+  .manual-actions .btn-sm{ width:100%; justify-content:center; }
+
+  /* command palette → full-screen bottom sheet */
+  .cmdk-overlay{ padding:0; align-items:flex-end; }
+  .cmdk-box{
+    width:100%; border-radius:18px 18px 0 0;
+    max-height:85vh; display:flex; flex-direction:column;
+  }
+  .cmdk-results{ flex:1; overflow-y:auto; }
+
+  /* search box full width */
+  .search-box{ width:100%; }
+  .search-box input{ width:100%; }
+  .table-controls{ flex-direction:column; align-items:stretch; }
+  .table-controls .filter-chip{ justify-content:center; }
+
+  /* pagination simplified */
+  .pagination-bar{ flex-direction:column; align-items:flex-start; gap:10px; }
+  .page-size-select{ width:100%; }
+
+  /* bulk bar stacks */
+  .bulk-bar{ flex-direction:column; align-items:flex-start; }
+  .bulk-bar .bulk-actions{ width:100%; }
+  .bulk-bar .bulk-actions .btn-sm{ flex:1; justify-content:center; }
+
+  /* login OTP digits smaller */
+  .mfa-digit{ width:38px; height:46px; font-size:18px; }
+  .mfa-row{ gap:6px; }
+
+  /* topbar tighter */
+  .topbar{ padding:9px 14px; gap:10px; }
+  .env-pill span:last-child{ display:none; }
+
+  /* zone spacing tighter */
+  .zone{ margin-bottom:20px; }
 }
