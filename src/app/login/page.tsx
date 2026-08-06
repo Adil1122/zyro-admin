@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useApp } from '@/lib/context';
 
 function maskEmail(email: string): string {
   const [user, domain] = email.split('@');
@@ -11,6 +12,7 @@ function maskEmail(email: string): string {
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useApp();
 
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
@@ -91,6 +93,7 @@ export default function LoginPage() {
         digitRefs.current[0]?.focus();
         return;
       }
+      login();
       router.replace('/');
     } catch {
       setStep2Err('Could not connect to the server. Check your connection.');
